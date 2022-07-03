@@ -1,0 +1,32 @@
+input AMPLIFY {
+  globalAuthRule: AuthRule = { allow: public }
+} # FOR TESTING ONLY!
+
+type Player @model {
+  fobId: ID! @primaryKey
+  alias: String!
+
+  # this is a workaround since it appears there isn't support to set the sortKey on the dynamo table
+  type: String! @index(name: "byAlias", queryField: "playersByAlias", sortKeyFields: ["alias"])
+
+  games: [Game] @manyToMany(relationName: "PlayerGames")
+}
+
+type Game @model {
+  id: ID!
+  switched: Boolean!
+
+  # Change to a combined score property? string like 1-2
+  sideAPoints: Int!
+  sideBPoints: Int!
+
+  startedAt: AWSDateTime!
+  endedAt: AWSDateTime
+  competitionId: ID!
+    @index(name: "byCompetition", queryField: "gameByCompetition", sortKeyFields: ["startedAt"])
+
+  # this is a workaround since it appears there isn't support to set the sortKey on the dynamo table
+  type: String! @index(name: "byStartedAt", queryField: "gamesByStartedAt", sortKeyFields: ["startedAt"])
+
+  players: [Player!] @manyToMany(relationName: "PlayerGames")
+}
