@@ -1,0 +1,40 @@
+pi 1
+
+RFID:
+SDA to 24
+SCK to 23
+MOSI to 19
+MISO to 21
+IRQ to X
+GND to GND
+RST to 22
+3.3V to 3.3V
+
+Buzzer:
+GND
+GPIO17
+
+
+vibration sensor
+GPIO17
+
+goal sensors
+GPIO4, GPIO5, GPIO6
+
+game start sensor
+GPIO6
+
+oled screen
+https://learn.adafruit.com/adafruit-pioled-128x32-mini-oled-for-raspberry-pi/usage
+https://pimylifeup.com/raspberry-pi-i2c/
+
+
+pi 2
+
+dot matrix:
+CLK to 23
+CS to 24
+DIN to 19
+GND to GND
+VCC to 5v
+
