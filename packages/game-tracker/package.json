@@ -13,9 +13,11 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@aws-amplify/cli": "^9.1.0",
     "aws-amplify": "^4.3.26",
     "aws-sdk": "^2.570.0",
     "inquirer": "^7.0.2",
+    "lodash": "^4.17.21",
     "lodash.debounce": "^4.0.8",
     "mfrc522-rpi": "^2.1.1",
     "node-fetch": "^2.6.0",

@@ -68,6 +68,9 @@ exports.createGame = /* GraphQL */ `
   ) {
     createGame(input: $input, condition: $condition) {
       id
+      startedAt
+      sideAPoints
+      sideBPoints
     }
   }
 `;
