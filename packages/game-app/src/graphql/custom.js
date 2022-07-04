@@ -145,22 +145,10 @@ export const onUpdateGame = /* GraphQL */ `
   subscription OnUpdateGame {
     onUpdateGame {
       id
-      switched
       sideAPoints
       sideBPoints
       startedAt
       endedAt
-      competitionId
-      players {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
-        nextToken
-      }
     }
   }
 `;

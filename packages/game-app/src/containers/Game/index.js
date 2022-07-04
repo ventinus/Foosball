@@ -11,19 +11,18 @@ const Game = () => {
   const { gameId } = useParams();
   const queryClient = useQueryClient();
 
-  const {
-    data = {},
-    isFetching,
-  } = useQuery(["game", gameId], () => getGame(gameId));
+  const { data = {}, isFetching } = useQuery(["game", gameId], () =>
+    getGame(gameId)
+  );
   const { competitionId, sideAPoints, sideBPoints } = data;
+  const updateGameData = (updates) =>
+    queryClient.setQueryData(["game", gameId], { ...data, ...updates });
 
   useEffect(() => {
-    const unsubscribe = onUpdateGame(gameId, (data) => {
-      queryClient.setQueryData(["game", gameId], data);
-    });
+    const unsubscribe = onUpdateGame(gameId, updateGameData);
     // TODO: why does unsubscribe throw an error?
     // return unsubscribe;
-  }, [gameId, queryClient]);
+  }, [gameId, updateGameData]);
 
   return (
     <div>
