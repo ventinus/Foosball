@@ -96,6 +96,7 @@ exports.updateGame = /* GraphQL */ `
       sideAPoints
       sideBPoints
       endedAt
+      startedAt
     }
   }
 `;
