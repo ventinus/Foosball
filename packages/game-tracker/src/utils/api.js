@@ -30,6 +30,7 @@ exports.createGame = async (input, ...players) => {
     input: {
       ...input,
       competitionId,
+      startedAt: new Date().toISOString(),
       sideAPoints: 0,
       sideBPoints: 0,
       type: "Game",
@@ -38,7 +39,7 @@ exports.createGame = async (input, ...players) => {
   const gameID = data.createGame.id;
   // create the player games
   await Promise.all(
-    players.map((playerID) =>
+    players.map(({ fobId: playerID }) =>
       executeRequest(gql.createPlayerGames, {
         input: {
           gameID,

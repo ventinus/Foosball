@@ -68,6 +68,9 @@ exports.createGame = /* GraphQL */ `
   ) {
     createGame(input: $input, condition: $condition) {
       id
+      startedAt
+      sideAPoints
+      sideBPoints
     }
   }
 `;
@@ -93,6 +96,7 @@ exports.updateGame = /* GraphQL */ `
       sideAPoints
       sideBPoints
       endedAt
+      startedAt
     }
   }
 `;

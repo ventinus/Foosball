@@ -16,7 +16,7 @@ const {
   PAUSE,
   GAME_ACTIVITY,
   WARN_PAUSE,
-  PAUSE,
+  DENY,
 } = require("./state/actionTypes");
 const { childProcess, minToMs } = require("./utils");
 
@@ -52,7 +52,7 @@ const onAppKeypress = (keyName) => {
       gameService.send(CONFIRM);
       break;
     case "n":
-      gameService.send(PAUSE);
+      gameService.send(DENY);
       break;
   }
 };

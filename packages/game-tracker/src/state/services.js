@@ -1,4 +1,3 @@
-const { assign } = require("xstate");
 const { Game, Player } = require("../models");
 const { formatTeams, toCompetitionId } = require("../utils");
 const api = require("../utils/api");
@@ -23,8 +22,8 @@ exports.findOrCreateGame = async ({ players }) => {
   const [team1, team2] = formatTeams(players);
 
   const competitionId = toCompetitionId(team1, team2);
-  let game = await api.getCurrentGame(competitionId);
 
+  const game = await api.getCurrentGame(competitionId);
   if (game) throw Game(team1, team2, game);
 
   // create the game
