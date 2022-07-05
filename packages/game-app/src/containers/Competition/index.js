@@ -14,12 +14,7 @@ import { Breadcrumbs, Link } from "@/components";
 import { getCompetitionGames } from "@/utils/api";
 import { routes } from "@/utils/routes";
 import { competitionIdToTeams } from "@/utils/competition-helpers";
-
-const calculateDurationInMin = ({ startedAt, endedAt }) => {
-  const diff = new Date(endedAt) - new Date(startedAt);
-  const duration = Math.floor(diff / 60000);
-  return `${duration} minute${duration > 1 ? "s" : ""}`;
-};
+import { calculateDurationInMin } from "@/utils/time-helpers";
 
 const Competition = () => {
   const { competitionId } = useParams();

@@ -21,15 +21,19 @@ export const executeRequest = (action, options = {}) => {
 //       Player
 // ####################
 
-export const createPlayer = async (details) => {
-  const { data } = await executeRequest(mutations.createPlayer, {
-    input: details,
+export const createPlayer = async ({ alias, fobId }) => {
+  const { data } = await executeRequest(custom.createPlayer, {
+    input: {
+      alias,
+      fobId,
+      type: "Player",
+    },
   });
   return data.createPlayer;
 };
 
 export const getPlayer = async (fobId) => {
-  const { data } = await executeRequest(queries.getPlayer, { fobId });
+  const { data } = await executeRequest(custom.getPlayer, { fobId });
   return data.getPlayer;
 };
 
@@ -131,7 +135,8 @@ export const onUpdateGame = (id, callback) => {
   }).subscribe({
     next: (payload) => {
       console.log(payload.value.data);
-      return callback(payload.value.data.onUpdateGame)},
+      return callback(payload.value.data.onUpdateGame);
+    },
     error: (error) => {
       console.error("onUpdateGame error", error);
     },

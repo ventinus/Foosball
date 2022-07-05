@@ -5,13 +5,24 @@ export const getPlayer = /* GraphQL */ `
       alias
       games {
         items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
+          game {
+            competitionId
+            id
+            players {
+              items {
+                playerID
+                player {
+                  alias
+                }
+              }
+            }
+            endedAt
+            sideAPoints
+            sideBPoints
+            startedAt
+            switched
+          }
         }
-        nextToken
       }
       createdAt
       updatedAt
@@ -155,6 +166,42 @@ export const gameByCompetition = /* GraphQL */ `
     }
   }
 `;
+
+export const createPlayer = /* GraphQL */ `
+  mutation CreatePlayer(
+    $input: CreatePlayerInput!
+    $condition: ModelPlayerConditionInput
+  ) {
+    createPlayer(input: $input, condition: $condition) {
+      fobId
+      alias
+      games {
+        items {
+          game {
+            competitionId
+            id
+            players {
+              items {
+                player {
+                  alias
+                  fobId
+                }
+              }
+            }
+            endedAt
+            sideAPoints
+            sideBPoints
+            startedAt
+            switched
+          }
+        }
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 
 export const onUpdateGame = /* GraphQL */ `
   subscription OnUpdateGame {

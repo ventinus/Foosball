@@ -3,3 +3,4 @@ export { default as GameList } from "./GameList";
 export { default as Link } from "./Link";
 export { default as ListGames } from "./ListGames";
 export { default as ListPlayers } from "./ListPlayers";
+export { default as PlayerRegistration } from "./PlayerRegistration";

@@ -1,4 +1,4 @@
-import { useEffect, Fragment } from "react";
+import { useEffect, Fragment, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "react-query";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -20,8 +20,10 @@ const Game = () => {
     getGame(gameId)
   );
 
-  const updateGameData = (updates) =>
-    queryClient.setQueryData(["game", gameId], updates);
+  const updateGameData = useCallback(
+    (updates) => queryClient.setQueryData(["game", gameId], updates),
+    [gameId, queryClient]
+  );
 
   const teams = competitionIdToTeams({
     competitionId: data.competitionId,

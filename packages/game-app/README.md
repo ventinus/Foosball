@@ -2,11 +2,11 @@
 
 
 ### Where I want this to go:
-- have a page to view a specific competition breakdown
-- have a page to view player statistics
+✅ have a page to view a specific competition breakdown
+✅ have a page to view player statistics
   - able to edit alias
 - be able to search for players by alias on dashboard
-- able to sort listGames by startedAt
+✅ able to sort listGames by startedAt
 - have an easy way to determine who won a game
   - somewhat related, have a better way of associating players to a game along with which side they are playing on (applies for singles and doubles)
 - support online player registration
