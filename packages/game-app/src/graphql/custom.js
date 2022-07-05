@@ -196,8 +196,6 @@ export const createPlayer = /* GraphQL */ `
           }
         }
       }
-      createdAt
-      updatedAt
     }
   }
 `;

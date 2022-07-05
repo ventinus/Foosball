@@ -57,6 +57,27 @@ exports.createPlayer = /* GraphQL */ `
     createPlayer(input: $input, condition: $condition) {
       fobId
       alias
+      games {
+        items {
+          game {
+            competitionId
+            id
+            players {
+              items {
+                player {
+                  alias
+                  fobId
+                }
+              }
+            }
+            endedAt
+            sideAPoints
+            sideBPoints
+            startedAt
+            switched
+          }
+        }
+      }
     }
   }
 `;
@@ -71,6 +92,8 @@ exports.createGame = /* GraphQL */ `
       startedAt
       sideAPoints
       sideBPoints
+      competitionId
+      switched
     }
   }
 `;
@@ -93,10 +116,12 @@ exports.updateGame = /* GraphQL */ `
   ) {
     updateGame(input: $input, condition: $condition) {
       id
+      switched
       sideAPoints
       sideBPoints
-      endedAt
       startedAt
+      endedAt
+      competitionId
     }
   }
 `;
