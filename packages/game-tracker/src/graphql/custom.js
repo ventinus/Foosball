@@ -122,6 +122,15 @@ exports.updateGame = /* GraphQL */ `
       startedAt
       endedAt
       competitionId
+      players {
+        items {
+          id
+          playerID
+          gameID
+          createdAt
+          updatedAt
+        }
+      }
     }
   }
 `;
