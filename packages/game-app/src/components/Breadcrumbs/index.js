@@ -6,14 +6,15 @@ import { Link } from "@/components";
 import { routes } from "@/utils/routes";
 
 const Breadcrumbs = () => {
-  const { gameId, playerId } = useParams();
+  const { gameId, playerId, competitionId } = useParams();
   return (
     <MuiBreadcrumbs separator="›" aria-label="breadcrumb">
       <Link to={routes.dashboard()}>Dashboard</Link>
-      {gameId ? (
-        <Typography color="text.primary">Game</Typography>
-      ) : null}
+      {gameId ? <Typography color="text.primary">Game</Typography> : null}
       {playerId ? <Typography color="text.primary">Player</Typography> : null}
+      {competitionId ? (
+        <Typography color="text.primary">Competition</Typography>
+      ) : null}
     </MuiBreadcrumbs>
   );
 };

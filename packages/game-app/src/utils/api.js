@@ -78,7 +78,7 @@ export const getGame = async (id) => {
 };
 
 export const getCompetitionGames = async ({ competitionId, nextToken }) => {
-  const { data } = await executeRequest(queries.gameByCompetition, {
+  const { data } = await executeRequest(custom.gameByCompetition, {
     competitionId,
     limit: 100,
     nextToken,

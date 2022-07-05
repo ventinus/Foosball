@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Amplify } from "aws-amplify";
 import { QueryClient, QueryClientProvider } from "react-query";
 
-import { Dashboard, Game, Player } from "./containers";
+import { Dashboard, Game, Player, Competition } from "./containers";
 import reportWebVitals from "./reportWebVitals";
 import awsconfig from "./aws-exports";
 
@@ -33,6 +33,10 @@ root.render(
           <Route path="/" element={<Dashboard />} />
           <Route path="/games/:gameId" element={<Game />} />
           <Route path="/players/:playerId" element={<Player />} />
+          <Route
+            path="/competitions/:competitionId"
+            element={<Competition />}
+          />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "react-query";
 import CircularProgress from "@mui/material/CircularProgress";
-import { Box, Typography, Divider } from "@mui/material";
+import { Typography } from "@mui/material";
 
 import { Breadcrumbs } from "@/components";
 import { getPlayer } from "@/utils/api";

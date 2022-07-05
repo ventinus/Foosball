@@ -61,7 +61,6 @@ export const getGame = /* GraphQL */ `
       startedAt
       endedAt
       competitionId
-      type
       players {
         items {
           id
@@ -69,6 +68,9 @@ export const getGame = /* GraphQL */ `
           gameID
           createdAt
           updatedAt
+          player {
+            alias
+          }
         }
         nextToken
       }
@@ -103,7 +105,12 @@ export const gamesByStartedAt = /* GraphQL */ `
         competitionId
         type
         players {
-          nextToken
+          items {
+            playerID
+            player {
+              alias
+            }
+          }
         }
       }
       nextToken
@@ -135,6 +142,14 @@ export const gameByCompetition = /* GraphQL */ `
         sideBPoints
         startedAt
         endedAt
+        players {
+          items {
+            playerID
+            player {
+              alias
+            }
+          }
+        }
       }
       nextToken
     }
@@ -145,10 +160,22 @@ export const onUpdateGame = /* GraphQL */ `
   subscription OnUpdateGame {
     onUpdateGame {
       id
+      switched
       sideAPoints
       sideBPoints
       startedAt
       endedAt
+      competitionId
+      players {
+        items {
+          id
+          playerID
+          gameID
+          createdAt
+          updatedAt
+        }
+        nextToken
+      }
     }
   }
 `;
