@@ -116,21 +116,9 @@ exports.updateGame = /* GraphQL */ `
   ) {
     updateGame(input: $input, condition: $condition) {
       id
-      switched
       sideAPoints
       sideBPoints
-      startedAt
       endedAt
-      competitionId
-      players {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
-      }
     }
   }
 `;

@@ -2,7 +2,7 @@ const soundBuzzer = require("./deviceHandlers/beep");
 
 exports.formatTeams = (players) => {
   let team1, team2;
-  const ids = players.map((player) => player.fobId);
+  const ids = players.map((player) => player.id);
   if (ids.length === 2) {
     team1 = `${ids[0]}`;
     team2 = `${ids[1]}`;

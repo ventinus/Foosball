@@ -23,7 +23,7 @@ exports.resetGame = assign({
   // }),
   // selectedPlayerIndices: () => [],
   newPlayer: () => ({
-    id: 0,
+    id: "0",
     alias: "",
   }),
 });
@@ -48,7 +48,7 @@ exports.backspace = assign({
 
 exports.seedNewPlayer = assign({
   newPlayer: (ctx, event) => ({
-    id: event.data.id,
+    id: `${event.data.id}`,
     alias: "",
   }),
 });
@@ -68,82 +68,11 @@ exports.createPlayer = assign({
     Player.create(newPlayer);
 
     return {
-      id: 0,
+      id: "0",
       alias: "",
     };
   },
   players: ({ players, newPlayer }) => addPlayer(players, newPlayer),
-});
-
-exports.switchSides = assign({
-  players: ({ players }) => {
-    if (players.length === 4) {
-      return players.slice(2, 4).concat(players.slice(0, 2));
-    }
-
-    return Array.from(players).reverse();
-  },
-});
-
-exports.moveCursor = assign({
-  cursorPosition: (
-    { cursorPosition, players, selectedPlayerIndices },
-    { direction }
-  ) => {
-    const updatedCursor = Object.assign({}, cursorPosition);
-    const maxY = 1;
-
-    if (direction === "up") {
-      const newY = cursorPosition.y - 1;
-      updatedCursor.y = newY < 0 ? maxY : newY;
-    } else if (direction === "down") {
-      const newY = cursorPosition.y + 1;
-      updatedCursor.y = newY > maxY ? 0 : newY;
-    }
-
-    return updatedCursor;
-  },
-});
-
-exports.setSelectedPlayer = assign({
-  selectedPlayerIndices: ({ selectedPlayerIndices, cursorPosition }) =>
-    selectedPlayerIndices.concat(cursorPosition.y),
-  cursorPosition: ({ selectedPlayerIndices }) => ({
-    y: 0,
-    x: selectedPlayerIndices.length === 0 ? 1 : 0,
-  }),
-});
-
-exports.exchangePlayers = assign({
-  players: ({ selectedPlayerIndices, players }) => {
-    if (selectedPlayerIndices.length < 2) return players;
-    const [first, second] = selectedPlayerIndices;
-
-    const out = [];
-    if (first === 0) {
-      out.push(players[second + 2]);
-      out.push(players[1]);
-    } else {
-      out.push(players[0]);
-      out.push(players[second + 2]);
-    }
-
-    if (second === 0) {
-      out.push(players[first]);
-      // check if there's a fourth player
-      if (players[3]) out.push(players[3]);
-    } else {
-      out.push(players[2]);
-      out.push(players[first]);
-    }
-
-    return out;
-  },
-});
-
-exports.resetSelectedPlayers = assign({
-  selectedPlayerIndices: ({ selectedPlayerIndices }) =>
-    selectedPlayerIndices.length === 2 ? [] : selectedPlayerIndices,
 });
 
 exports.scorePoint = assign({
@@ -170,10 +99,16 @@ exports.createGame = assign({
   },
 });
 
-exports.resetScore = assign(({ currentGame }) => currentGame.resetScore());
+exports.resetScore = assign(({ currentGame }) => {
+  currentGame.resetScore();
+  return currentGame;
+});
 
 // save current game state
-exports.updateGame = assign(({ currentGame }) => currentGame.updateGame());
+exports.updateGame = assign(({ currentGame }) => {
+  currentGame.updateGame();
+  return currentGame;
+});
 
 exports.deleteGame = assign({
   currentGame: ({ currentGame }) => {

@@ -15,6 +15,6 @@ const Player = ({ id, alias }) => {
 
 Player.find = (id) => api.findPlayer(id);
 
-Player.create = ({ id, alias }) => api.createPlayer({ alias, fobId: id });
+Player.create = ({ id, alias }) => api.createPlayer({ id, alias });
 
 module.exports = Player;

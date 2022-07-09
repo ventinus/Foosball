@@ -1,9 +1,6 @@
 # FoosballGame
 Receives input from connected sensors on a Raspberry Pi, keeping track of score and saving games
 
-# Next Steps:
-- log errors from child processes
-
 # TODOS (no particular order):
 - support changing the amount of points needed to win (5 or 10 or whatever)
 - add a button to undo last point

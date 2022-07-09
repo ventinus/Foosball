@@ -37,9 +37,10 @@ exports.createGame = async (input, ...players) => {
     },
   });
   const gameID = data.createGame.id;
+
   // create the player games
   await Promise.all(
-    players.map(({ fobId: playerID }) =>
+    players.map(({ id: playerID }) =>
       executeRequest(gql.createPlayerGames, {
         input: {
           gameID,
@@ -48,6 +49,7 @@ exports.createGame = async (input, ...players) => {
       })
     )
   );
+
   return data.createGame;
 };
 
@@ -59,23 +61,26 @@ exports.updateGame = async (input) => {
 exports.findPlayer = async (fobId) => {
   try {
     const { data } = await executeRequest(gql.getPlayer, { fobId });
-    return data.getPlayer;
+    if (data.getPlayer) {
+      return { alias: data.getPlayer.alias, id: data.getPlayer.fobId };
+    }
+    return null;
   } catch (err) {
     console.log("findPlayer err", err);
     throw err;
   }
 };
 
-exports.createPlayer = async ({ fobId, alias }) => {
+exports.createPlayer = async ({ id, alias }) => {
   try {
-    const { data } = await executeRequest(gql.createPlayer, {
+    await executeRequest(gql.createPlayer, {
       input: {
-        fobId,
+        fobId: id,
         alias,
         type: "Player",
       },
     });
-    return data.createPlayer;
+    return { id, alias };
   } catch (err) {
     console.log("updateCurrent err", err);
     throw err;
