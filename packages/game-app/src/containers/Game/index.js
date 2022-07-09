@@ -20,11 +20,6 @@ const Game = () => {
     getGame(gameId)
   );
 
-  const updateGameData = useCallback(
-    (updates) => queryClient.setQueryData(["game", gameId], updates),
-    [gameId, queryClient]
-  );
-
   const teams = competitionIdToTeams({
     competitionId: data.competitionId,
     players: data.players?.items,
@@ -32,10 +27,15 @@ const Game = () => {
   });
 
   useEffect(() => {
-    const unsubscribe = onUpdateGame(gameId, updateGameData);
+    const unsubscribe = onUpdateGame((updates) =>
+      queryClient.setQueryData(["game", updates.id], (current) => ({
+        ...current,
+        ...updates,
+      }))
+    );
     // TODO: why does unsubscribe throw an error?
     // return unsubscribe;
-  }, [gameId, updateGameData]);
+  }, [gameId, queryClient]);
 
   return (
     <div>

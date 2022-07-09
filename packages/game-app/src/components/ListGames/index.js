@@ -20,7 +20,6 @@ const ListGames = ({ variant }) => {
     isError,
   } = useQuery(["listGames", variant], listGameApiMap[variant]);
   const { games = [], nextToken } = data;
-  console.log(games);
 
   return (
     <Box sx={{ p: "1rem" }}>

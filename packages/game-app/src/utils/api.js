@@ -1,12 +1,8 @@
 import { API, graphqlOperation } from "aws-amplify";
 import * as mutations from "@/graphql/mutations";
-import * as queries from "@/graphql/queries";
-import * as subscriptions from "@/graphql/subscriptions";
-
 import * as custom from "@/graphql/custom";
 
 import _get from "lodash/get";
-// import { simpleKebab, getExtension } from 'utils/helpers'
 
 export const executeRequest = (action, options = {}) => {
   return API.graphql(
@@ -129,16 +125,13 @@ export const listRecentGames = ({ limit, nextToken }) =>
     nextToken,
   });
 
-export const onUpdateGame = (id, callback) => {
-  const subscription = executeRequest(custom.onUpdateGame, {
-    id,
-  }).subscribe({
+export const onUpdateGame = (callback) => {
+  const subscription = executeRequest(custom.onUpdateGame).subscribe({
     next: (payload) => {
-      console.log(payload.value.data);
       return callback(payload.value.data.onUpdateGame);
     },
     error: (error) => {
-      console.error("onUpdateGame error", error);
+      // console.error("onUpdateGame error", error);
     },
   });
 
