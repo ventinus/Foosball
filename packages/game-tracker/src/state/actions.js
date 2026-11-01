@@ -74,6 +74,9 @@ exports.createGame = assign({
 });
 
 // ------------- Side effects ------------- //
+// Saves are fire-and-forget; log failures so an unhandled rejection can't crash the process.
+const logFailure = (label) => (err) => console.log(`${label} failed`, err);
+
 exports.updateCompetition = ({ context: { players } }) =>
   showCompetition(players);
 
@@ -83,7 +86,7 @@ exports.promptAliasInput = ({ context: { newPlayer } }) =>
   prompt(["Enter a name (<10):", "", newPlayer.alias]);
 
 exports.createPlayer = ({ context: { newPlayer } }) => {
-  Player.create(newPlayer);
+  Player.create(newPlayer).catch(logFailure("createPlayer"));
 };
 
 exports.promptResume = () =>
@@ -92,12 +95,12 @@ exports.promptResume = () =>
 exports.clearPrompt = () => prompt();
 
 exports.resetScore = ({ context: { currentGame } }) => {
-  currentGame.resetScore();
+  currentGame.resetScore().catch(logFailure("resetScore"));
 };
 
 // save current game state
 exports.updateGame = ({ context: { currentGame } }) => {
-  currentGame.updateGame();
+  currentGame.updateGame().catch(logFailure("updateGame"));
 };
 
 exports.setWarning = () => {

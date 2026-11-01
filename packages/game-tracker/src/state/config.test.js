@@ -150,6 +150,15 @@ describe("gameMachine", () => {
       expect(state().context.currentGame).toBe(null);
     });
 
+    it("should NOT add a player twice when the reader sends a numeric id", () => {
+      // the API returns fobId as a string; the RFID reader sends a number
+      start({ players: [{ id: "12345", alias: "player-exists" }] });
+      send(BADGE_SCAN, { id: 12345 });
+
+      expect(state().value).toBe("inactive");
+      expect(state().context.players).toHaveLength(1);
+    });
+
     it("should not exceed 4 players", async () => {
       start({
         players: [
@@ -206,6 +215,39 @@ describe("gameMachine", () => {
       expect(state().context.newPlayer).toEqual({ id: "0", alias: "" });
       expect(state().context.players).toEqual([{ id: "888", alias: "ab" }]);
       expect(state().value).toBe("inactive");
+    });
+  });
+
+  describe("fire-and-forget saves", () => {
+    const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+    it("should log, not reject, when creating a player fails", async () => {
+      const log = jest.spyOn(console, "log").mockImplementation(() => {});
+      api.createPlayer.mockRejectedValueOnce(new Error("network down"));
+      startAt("registration", { newPlayer: { id: "888", alias: "ab" } });
+
+      send(CONFIRM);
+      await flush();
+
+      expect(state().value).toBe("inactive");
+      expect(log).toHaveBeenCalledWith("createPlayer failed", expect.any(Error));
+      log.mockRestore();
+    });
+
+    it("should log, not reject, when saving a point fails", async () => {
+      const log = jest.spyOn(console, "log").mockImplementation(() => {});
+      api.updateGame.mockRejectedValueOnce(new Error("network down"));
+      startAt("active", {
+        players: [{ id: "1" }, { id: "2" }],
+        currentGame: Game("1", "2", { sideAPoints: 0, sideBPoints: 0 }),
+      });
+
+      send(SCORE_POINT, { index: 0 });
+      await flush();
+
+      expect(state().context.currentGame.teamPoints).toEqual([1, 0]);
+      expect(log).toHaveBeenCalledWith("updateGame failed", expect.any(Error));
+      log.mockRestore();
     });
   });
 
