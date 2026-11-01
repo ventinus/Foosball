@@ -11,17 +11,12 @@ export const createPlayer = /* GraphQL */ `
       alias
       type
       games {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -35,17 +30,12 @@ export const updatePlayer = /* GraphQL */ `
       alias
       type
       games {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -59,17 +49,12 @@ export const deletePlayer = /* GraphQL */ `
       alias
       type
       games {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -88,17 +73,12 @@ export const createGame = /* GraphQL */ `
       competitionId
       type
       players {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -117,17 +97,12 @@ export const updateGame = /* GraphQL */ `
       competitionId
       type
       players {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -146,17 +121,12 @@ export const deleteGame = /* GraphQL */ `
       competitionId
       type
       players {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -173,11 +143,9 @@ export const createPlayerGames = /* GraphQL */ `
         fobId
         alias
         type
-        games {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       game {
         id
@@ -188,14 +156,13 @@ export const createPlayerGames = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -212,11 +179,9 @@ export const updatePlayerGames = /* GraphQL */ `
         fobId
         alias
         type
-        games {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       game {
         id
@@ -227,14 +192,13 @@ export const updatePlayerGames = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -251,11 +215,9 @@ export const deletePlayerGames = /* GraphQL */ `
         fobId
         alias
         type
-        games {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       game {
         id
@@ -266,14 +228,13 @@ export const deletePlayerGames = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;

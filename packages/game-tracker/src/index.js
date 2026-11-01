@@ -1,11 +1,14 @@
-const { Machine, interpret } = require("xstate");
+const { createActor } = require("xstate");
 const readline = require("readline");
-const debounce = require("lodash.debounce");
+const debounce = require("lodash/debounce");
 const { Amplify } = require("aws-amplify");
 
-const awsconfig = require("./aws-exports");
+// `amplify pull` writes aws-exports.js as an ES module (`export default`); Node 24's
+// require(esm) returns its namespace, so unwrap `default` when present.
+const awsExports = require("./aws-exports");
+const awsconfig = awsExports.default ?? awsExports;
 
-const { gameConfig } = require("./state/config");
+const { gameMachine } = require("./state/config");
 const {
   INITIATE_GAME,
   BADGE_SCAN,
@@ -22,48 +25,46 @@ const { childProcess, minToMs } = require("./utils");
 
 Amplify.configure(awsconfig);
 
-const gameMachine = Machine(gameConfig);
-let currentState = gameMachine.initialState.value;
-
-const gameService = interpret(gameMachine)
-  .onTransition((state) => {
-    if (state.changed) currentState = state.value;
-  })
-  .start();
+const gameService = createActor(gameMachine);
+let currentState;
+gameService.subscribe((snapshot) => {
+  currentState = snapshot.value;
+});
+gameService.start();
 
 const onBadgeScan = ({ message, id }) => {
   if (message) {
     console.log("FROM SCAN", message);
   } else if (id) {
-    gameService.send(BADGE_SCAN, { id });
+    gameService.send({ type: BADGE_SCAN, id });
   }
 };
 
 const onBreakBeam = (index) => {
   console.log("break beam", index);
   return index <= 1
-    ? gameService.send(SCORE_POINT, { index })
-    : gameService.send(INITIATE_GAME);
+    ? gameService.send({ type: SCORE_POINT, index })
+    : gameService.send({ type: INITIATE_GAME });
 };
 const onAppKeypress = (keyName) => {
   switch (keyName) {
     case "y":
     case "return":
-      gameService.send(CONFIRM);
+      gameService.send({ type: CONFIRM });
       break;
     case "n":
-      gameService.send(DENY);
+      gameService.send({ type: DENY });
       break;
   }
 };
 
 const onInputKeypress = (keyName) => {
   if (keyName.length === 1 && /[a-z0-9]/.test(keyName)) {
-    gameService.send(APPEND_CHAR, { character: keyName });
+    gameService.send({ type: APPEND_CHAR, character: keyName });
   } else if (keyName === "return") {
-    gameService.send(CONFIRM);
+    gameService.send({ type: CONFIRM });
   } else if (keyName === "backspace") {
-    gameService.send(BACKSPACE);
+    gameService.send({ type: BACKSPACE });
   }
 };
 
@@ -73,11 +74,11 @@ const onVibration = () => {
   clearTimeout(gameWarnId);
   clearTimeout(gamePauseId);
 
-  if (currentState === "pauseWarning") gameService.send(GAME_ACTIVITY);
+  if (currentState === "pauseWarning") gameService.send({ type: GAME_ACTIVITY });
 
   gameWarnId = setTimeout(() => {
-    gameService.send(WARN_PAUSE);
-    gamePauseId = setTimeout(() => gameService.send(PAUSE), 1);
+    gameService.send({ type: WARN_PAUSE });
+    gamePauseId = setTimeout(() => gameService.send({ type: PAUSE }), 1);
   }, minToMs(2));
 };
 

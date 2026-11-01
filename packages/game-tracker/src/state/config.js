@@ -1,153 +1,148 @@
+const { setup } = require("xstate");
+
 const {
   INITIATE_GAME,
   BADGE_SCAN,
-  ADD_PLAYER,
   APPEND_CHAR,
   BACKSPACE,
   SCORE_POINT,
   CONFIRM,
   DENY,
-  SWITCH_SIDES,
   GAME_ACTIVITY,
   WARN_PAUSE,
   PAUSE,
 } = require("./actionTypes");
 
-const {
-  resetGame,
-  addPlayer,
-  appendCharacter,
-  backspace,
-  createPlayer,
-  seedNewPlayer,
-  updateCompetition,
-  promptSearching,
-  promptAliasInput,
-  switchSides,
-  promptResume,
-  clearPrompt,
-  scorePoint,
-  updateGame,
-  resetScore,
-  setGame,
-  setWarning,
-} = require("./actions");
+const actions = require("./actions");
+const actors = require("./services");
+const guards = require("./guards");
 
-const { findOrCreateGame, completeGame, findPlayer } = require("./services");
-const { canActivate, notPresent, gameComplete } = require("./guards");
+exports.initialContext = {
+  players: [],
+  currentGame: null,
+  bestOfLimit: 1, // how many games to play to
+  cursorPosition: {
+    x: 0,
+    y: 0,
+  },
+  selectedPlayerIndices: [],
+  newPlayer: {
+    id: 0,
+    alias: "",
+  },
+};
 
-exports.gameConfig = {
+exports.gameMachine = setup({ actions, actors, guards }).createMachine({
   id: "foosball",
   initial: "inactive",
-  context: {
-    players: [],
-    currentGame: null,
-    bestOfLimit: 1, // how many games to play to
-    cursorPosition: {
-      x: 0,
-      y: 0,
-    },
-    selectedPlayerIndices: [],
-    newPlayer: {
-      id: 0,
-      alias: "",
-    },
-  },
+  // `input` lets callers (and tests) seed part of the context
+  context: ({ input }) => ({ ...exports.initialContext, ...input }),
   states: {
     inactive: {
-      entry: updateCompetition,
+      entry: "updateCompetition",
       on: {
         [INITIATE_GAME]: {
           target: "pending",
-          cond: canActivate,
+          guard: "canActivate",
         },
         [BADGE_SCAN]: {
           target: "findPlayer",
-          cond: notPresent,
+          guard: "notPresent",
         },
       },
     },
     findPlayer: {
-      entry: promptSearching,
+      entry: "promptSearching",
       invoke: {
         id: "find-player",
-        src: findPlayer,
+        src: "findPlayer",
+        input: ({ event }) => ({ id: event.id }),
         onDone: {
           target: "inactive",
-          actions: addPlayer,
+          actions: "addPlayer",
         },
-        onError: "registration",
+        onError: {
+          target: "registration",
+          actions: "seedNewPlayer",
+        },
       },
     },
     registration: {
-      entry: [seedNewPlayer, promptAliasInput],
+      entry: "promptAliasInput",
       on: {
         [APPEND_CHAR]: {
-          actions: [appendCharacter, promptAliasInput],
+          actions: ["appendCharacter", "promptAliasInput"],
         },
         [BACKSPACE]: {
-          actions: [backspace, promptAliasInput],
+          actions: ["backspace", "promptAliasInput"],
         },
         [CONFIRM]: {
-          actions: createPlayer,
+          actions: ["createPlayer", "addNewPlayer"],
           target: "inactive",
         },
       },
     },
     pending: {
-      exit: [setGame],
       invoke: {
         id: "find-or-create-game",
-        src: findOrCreateGame,
-        onDone: "active",
-        onError: "shouldResume",
+        src: "findOrCreateGame",
+        input: ({ context }) => ({ players: context.players }),
+        onDone: {
+          target: "active",
+          actions: "setGame",
+        },
+        onError: {
+          target: "shouldResume",
+          actions: "setGame",
+        },
       },
     },
     shouldResume: {
-      entry: promptResume,
-      exit: clearPrompt,
+      entry: "promptResume",
+      exit: "clearPrompt",
       on: {
         [CONFIRM]: "active",
         [DENY]: {
           target: "active",
-          actions: [resetScore],
+          actions: "resetScore",
         },
       },
     },
     active: {
+      always: {
+        target: "complete",
+        guard: "gameComplete",
+      },
       on: {
-        "": {
-          target: "complete",
-          cond: gameComplete,
-        },
         [SCORE_POINT]: {
-          actions: [scorePoint, updateGame],
+          actions: ["scorePoint", "updateGame"],
         },
         [WARN_PAUSE]: "pauseWarning",
       },
     },
     pauseWarning: {
-      entry: setWarning,
+      entry: "setWarning",
       on: {
         [CONFIRM]: "active",
         [GAME_ACTIVITY]: "active",
         [DENY]: {
-          actions: [resetGame],
+          actions: "resetGame",
           target: "inactive",
         },
         [PAUSE]: {
-          actions: [resetGame],
+          actions: "resetGame",
           target: "inactive",
         },
       },
     },
     complete: {
-      exit: resetGame,
+      exit: "resetGame",
       invoke: {
         id: "complete-game",
-        src: completeGame,
+        src: "completeGame",
+        input: ({ context }) => ({ currentGame: context.currentGame }),
         onDone: "inactive",
       },
     },
   },
-};
+});

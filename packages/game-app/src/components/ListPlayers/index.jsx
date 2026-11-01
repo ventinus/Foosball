@@ -1,10 +1,10 @@
-import { Box } from "@mui/system";
+import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import { Button, ListItemButton, Typography } from "@mui/material";
+import { Button, Typography } from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { Link } from "@/components";
 import { listPlayers } from "@/utils/api";
@@ -14,9 +14,8 @@ const ListPlayers = () => {
   const {
     data = {},
     isLoading,
-    error,
     isError,
-  } = useQuery("listPlayers", listPlayers);
+  } = useQuery({ queryKey: ["listPlayers"], queryFn: () => listPlayers({}) });
 
   const { players = [], nextToken } = data;
 

@@ -1,16 +1,12 @@
-import { API, graphqlOperation } from "aws-amplify";
+import { generateClient } from "aws-amplify/api";
 import * as mutations from "@/graphql/mutations";
 import * as custom from "@/graphql/custom";
 
-import _get from "lodash/get";
-
-export const executeRequest = (action, options = {}) => {
-  return API.graphql(
-    graphqlOperation(action, {
-      ...options,
-      // , authMode: 'AMAZON_COGNITO_USER_POOLS'
-    })
-  );
+// Created lazily so Amplify.configure() (in main.jsx) has run first.
+let client;
+export const executeRequest = (query, variables = {}) => {
+  client ??= generateClient();
+  return client.graphql({ query, variables });
 };
 
 // ####################
@@ -127,13 +123,10 @@ export const listRecentGames = ({ limit, nextToken }) =>
 
 export const onUpdateGame = (callback) => {
   const subscription = executeRequest(custom.onUpdateGame).subscribe({
-    next: (payload) => {
-      return callback(payload.value.data.onUpdateGame);
-    },
-    error: (error) => {
-      // console.error("onUpdateGame error", error);
-    },
+    next: ({ data }) => callback(data.onUpdateGame),
+    error: (error) => console.error("onUpdateGame error", error),
   });
 
-  return subscription.unsubscribe;
+  // keep `this` bound; returning the bare method made unsubscribe throw
+  return () => subscription.unsubscribe();
 };

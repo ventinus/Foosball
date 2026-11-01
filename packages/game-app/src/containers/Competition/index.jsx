@@ -1,5 +1,5 @@
-import { useParams } from "react-router-dom";
-import { useQuery } from "react-query";
+import { useParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Typography } from "@mui/material";
 import Table from "@mui/material/Table";
@@ -19,10 +19,10 @@ import { calculateDurationInMin } from "@/utils/time-helpers";
 const Competition = () => {
   const { competitionId } = useParams();
 
-  const { data = {}, isFetching } = useQuery(
-    ["competition", competitionId],
-    () => getCompetitionGames({ competitionId })
-  );
+  const { data = {}, isFetching } = useQuery({
+    queryKey: ["competition", competitionId],
+    queryFn: () => getCompetitionGames({ competitionId }),
+  });
   const games = data.items || [];
   const teams = competitionIdToTeams({
     competitionId,
@@ -61,13 +61,11 @@ const Competition = () => {
               {games.map(
                 ({
                   id,
-                  competitionId,
                   switched,
                   sideAPoints,
                   sideBPoints,
                   startedAt,
                   endedAt,
-                  players,
                 }) => {
                   const points = [sideAPoints, sideBPoints];
                   return (

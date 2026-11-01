@@ -1,7 +1,6 @@
 # Game App
 
 ### Known issues
-- amplify subscription fails when returning `unsubscribe` function in `useEffect`
 - sides arent ordered correctly
 
 ### Where I want this to go:

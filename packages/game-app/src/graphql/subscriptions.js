@@ -2,71 +2,56 @@
 // this is an auto generated file. This will be overwritten
 
 export const onCreatePlayer = /* GraphQL */ `
-  subscription OnCreatePlayer {
-    onCreatePlayer {
+  subscription OnCreatePlayer($filter: ModelSubscriptionPlayerFilterInput) {
+    onCreatePlayer(filter: $filter) {
       fobId
       alias
       type
       games {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
 export const onUpdatePlayer = /* GraphQL */ `
-  subscription OnUpdatePlayer {
-    onUpdatePlayer {
+  subscription OnUpdatePlayer($filter: ModelSubscriptionPlayerFilterInput) {
+    onUpdatePlayer(filter: $filter) {
       fobId
       alias
       type
       games {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
 export const onDeletePlayer = /* GraphQL */ `
-  subscription OnDeletePlayer {
-    onDeletePlayer {
+  subscription OnDeletePlayer($filter: ModelSubscriptionPlayerFilterInput) {
+    onDeletePlayer(filter: $filter) {
       fobId
       alias
       type
       games {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
 export const onCreateGame = /* GraphQL */ `
-  subscription OnCreateGame {
-    onCreateGame {
+  subscription OnCreateGame($filter: ModelSubscriptionGameFilterInput) {
+    onCreateGame(filter: $filter) {
       id
       switched
       sideAPoints
@@ -76,23 +61,18 @@ export const onCreateGame = /* GraphQL */ `
       competitionId
       type
       players {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
 export const onUpdateGame = /* GraphQL */ `
-  subscription OnUpdateGame {
-    onUpdateGame {
+  subscription OnUpdateGame($filter: ModelSubscriptionGameFilterInput) {
+    onUpdateGame(filter: $filter) {
       id
       switched
       sideAPoints
@@ -102,23 +82,18 @@ export const onUpdateGame = /* GraphQL */ `
       competitionId
       type
       players {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
 export const onDeleteGame = /* GraphQL */ `
-  subscription OnDeleteGame {
-    onDeleteGame {
+  subscription OnDeleteGame($filter: ModelSubscriptionGameFilterInput) {
+    onDeleteGame(filter: $filter) {
       id
       switched
       sideAPoints
@@ -128,23 +103,20 @@ export const onDeleteGame = /* GraphQL */ `
       competitionId
       type
       players {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
 export const onCreatePlayerGames = /* GraphQL */ `
-  subscription OnCreatePlayerGames {
-    onCreatePlayerGames {
+  subscription OnCreatePlayerGames(
+    $filter: ModelSubscriptionPlayerGamesFilterInput
+  ) {
+    onCreatePlayerGames(filter: $filter) {
       id
       playerID
       gameID
@@ -152,11 +124,9 @@ export const onCreatePlayerGames = /* GraphQL */ `
         fobId
         alias
         type
-        games {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       game {
         id
@@ -167,20 +137,21 @@ export const onCreatePlayerGames = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
 export const onUpdatePlayerGames = /* GraphQL */ `
-  subscription OnUpdatePlayerGames {
-    onUpdatePlayerGames {
+  subscription OnUpdatePlayerGames(
+    $filter: ModelSubscriptionPlayerGamesFilterInput
+  ) {
+    onUpdatePlayerGames(filter: $filter) {
       id
       playerID
       gameID
@@ -188,11 +159,9 @@ export const onUpdatePlayerGames = /* GraphQL */ `
         fobId
         alias
         type
-        games {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       game {
         id
@@ -203,20 +172,21 @@ export const onUpdatePlayerGames = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
 export const onDeletePlayerGames = /* GraphQL */ `
-  subscription OnDeletePlayerGames {
-    onDeletePlayerGames {
+  subscription OnDeletePlayerGames(
+    $filter: ModelSubscriptionPlayerGamesFilterInput
+  ) {
+    onDeletePlayerGames(filter: $filter) {
       id
       playerID
       gameID
@@ -224,11 +194,9 @@ export const onDeletePlayerGames = /* GraphQL */ `
         fobId
         alias
         type
-        games {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       game {
         id
@@ -239,14 +207,13 @@ export const onDeletePlayerGames = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;

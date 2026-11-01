@@ -1,7 +1,7 @@
-import { Box } from "@mui/system";
+import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Button, Typography } from "@mui/material";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import upperFirst from "lodash/fp/upperFirst";
 
 import { GameList } from "@/components";
@@ -16,9 +16,11 @@ const ListGames = ({ variant }) => {
   const {
     data = {},
     isLoading,
-    error,
     isError,
-  } = useQuery(["listGames", variant], listGameApiMap[variant]);
+  } = useQuery({
+    queryKey: ["listGames", variant],
+    queryFn: () => listGameApiMap[variant]({}),
+  });
   const { games = [], nextToken } = data;
 
   return (

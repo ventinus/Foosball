@@ -12,120 +12,95 @@ const addPlayer = (players, newPlayer) => {
   return next.length > 4 ? next.slice(1) : next;
 };
 
-// ---------------- Actions ---------------- //
+const emptyNewPlayer = () => ({ id: "0", alias: "" });
+
+// ------------- Context updates ------------- //
 exports.resetGame = assign({
   players: () => [],
   currentGame: () => null,
   bestOfLimit: () => 1,
-  // cursorPosition: () => ({
-  //   x: 0,
-  //   y: 0,
-  // }),
-  // selectedPlayerIndices: () => [],
-  newPlayer: () => ({
-    id: "0",
-    alias: "",
-  }),
+  newPlayer: emptyNewPlayer,
 });
 
+// output of the find-player actor
 exports.addPlayer = assign({
-  players: ({ players }, { data }) => addPlayer(players, data),
+  players: ({ context, event }) => addPlayer(context.players, event.output),
 });
 
 exports.appendCharacter = assign({
-  newPlayer: ({ newPlayer }, { character }) => ({
+  newPlayer: ({ context: { newPlayer }, event }) => ({
     ...newPlayer,
-    alias: `${newPlayer.alias}${character}`.slice(0, 10),
+    alias: `${newPlayer.alias}${event.character}`.slice(0, 10),
   }),
 });
 
 exports.backspace = assign({
-  newPlayer: ({ newPlayer }) => ({
+  newPlayer: ({ context: { newPlayer } }) => ({
     ...newPlayer,
     alias: newPlayer.alias.slice(0, -1),
   }),
 });
 
+// error thrown by the find-player actor carries the unknown badge id
 exports.seedNewPlayer = assign({
-  newPlayer: (ctx, event) => ({
-    id: `${event.data.id}`,
+  newPlayer: ({ event }) => ({
+    id: `${event.error.id}`,
     alias: "",
   }),
 });
 
-exports.updateCompetition = assign(({ players }) => showCompetition(players));
-
-exports.promptSearching = assign(() =>
-  prompt("Please wait while I look you up...")
-);
-
-exports.promptAliasInput = assign(({ newPlayer }) =>
-  prompt(["Enter a name (<10):", "", newPlayer.alias])
-);
-
-exports.createPlayer = assign({
-  newPlayer: ({ newPlayer }) => {
-    Player.create(newPlayer);
-
-    return {
-      id: "0",
-      alias: "",
-    };
-  },
-  players: ({ players, newPlayer }) => addPlayer(players, newPlayer),
+exports.addNewPlayer = assign({
+  players: ({ context }) => addPlayer(context.players, context.newPlayer),
+  newPlayer: emptyNewPlayer,
 });
 
 exports.scorePoint = assign({
-  currentGame: ({ currentGame }, { index }) => {
-    currentGame.scorePoint(index);
+  currentGame: ({ context: { currentGame }, event }) => {
+    currentGame.scorePoint(event.index);
     return currentGame;
   },
 });
 
-exports.promptResume = assign(() =>
-  prompt("Would you like to resume your previous unfinished game?")
-);
-
-exports.clearPrompt = assign(prompt);
-
+// find-or-create-game resolves with a new game, or rejects with an unfinished one
 exports.setGame = assign({
-  currentGame: (ctx, { data }) => data,
+  currentGame: ({ event }) => event.output ?? event.error,
 });
 
 exports.createGame = assign({
-  currentGame: ({ players }) => {
+  currentGame: ({ context: { players } }) => {
     const [team1, team2] = formatTeams(players);
     return Game(team1, team2);
   },
 });
 
-exports.resetScore = assign(({ currentGame }) => {
+// ------------- Side effects ------------- //
+exports.updateCompetition = ({ context: { players } }) =>
+  showCompetition(players);
+
+exports.promptSearching = () => prompt("Please wait while I look you up...");
+
+exports.promptAliasInput = ({ context: { newPlayer } }) =>
+  prompt(["Enter a name (<10):", "", newPlayer.alias]);
+
+exports.createPlayer = ({ context: { newPlayer } }) => {
+  Player.create(newPlayer);
+};
+
+exports.promptResume = () =>
+  prompt("Would you like to resume your previous unfinished game?");
+
+exports.clearPrompt = () => prompt();
+
+exports.resetScore = ({ context: { currentGame } }) => {
   currentGame.resetScore();
-  return currentGame;
-});
+};
 
 // save current game state
-exports.updateGame = assign(({ currentGame }) => {
+exports.updateGame = ({ context: { currentGame } }) => {
   currentGame.updateGame();
-  return currentGame;
-});
+};
 
-exports.deleteGame = assign({
-  currentGame: ({ currentGame }) => {
-    currentGame.deleteGame();
-    return null;
-  },
-});
-
-exports.setWarning = assign(() => {
+exports.setWarning = () => {
   prompt("Are you still playing this game?");
   beep();
-});
-
-exports.pauseGame = assign({
-  currentGame: ({ currentGame }) => {
-    currentGame.pauseGame();
-    currentGame.updateGame();
-    return currentGame;
-  },
-});
+};

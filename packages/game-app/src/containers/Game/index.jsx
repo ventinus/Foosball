@@ -1,6 +1,6 @@
-import { useEffect, Fragment, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "react-query";
+import { useEffect, Fragment } from "react";
+import { useParams } from "react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Box, Typography, Divider } from "@mui/material";
 import List from "@mui/material/List";
@@ -16,9 +16,10 @@ const Game = () => {
   const { gameId } = useParams();
   const queryClient = useQueryClient();
 
-  const { data = {}, isFetching } = useQuery(["game", gameId], () =>
-    getGame(gameId)
-  );
+  const { data = {}, isFetching } = useQuery({
+    queryKey: ["game", gameId],
+    queryFn: () => getGame(gameId),
+  });
 
   const teams = competitionIdToTeams({
     competitionId: data.competitionId,
@@ -28,13 +29,11 @@ const Game = () => {
 
   useEffect(() => {
     const unsubscribe = onUpdateGame((updates) =>
-      queryClient.setQueryData(["game", updates.id], (current) => ({
-        ...current,
-        ...updates,
-      }))
+      queryClient.setQueryData(["game", updates.id], (current) =>
+        current ? { ...current, ...updates } : current
+      )
     );
-    // TODO: why does unsubscribe throw an error?
-    // return unsubscribe;
+    return unsubscribe;
   }, [gameId, queryClient]);
 
   return (

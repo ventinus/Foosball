@@ -1,10 +1,10 @@
-import React from "react";
+import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router";
 import { Amplify } from "aws-amplify";
-import { QueryClient, QueryClientProvider } from "react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { Dashboard, Game, Player, Competition } from "./containers";
+import { Dashboard, Game, Player, Competition } from "@/containers";
 import reportWebVitals from "./reportWebVitals";
 import awsconfig from "./aws-exports";
 
@@ -26,7 +26,7 @@ const queryClient = new QueryClient({
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <React.StrictMode>
+  <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
@@ -40,10 +40,8 @@ root.render(
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
-  </React.StrictMode>
+  </StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+// Pass a function (e.g. console.log) to start measuring performance.
 reportWebVitals();

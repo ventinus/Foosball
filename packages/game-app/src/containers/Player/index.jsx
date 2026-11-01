@@ -1,5 +1,5 @@
-import { useParams } from "react-router-dom";
-import { useQuery } from "react-query";
+import { useParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Typography } from "@mui/material";
 import Table from "@mui/material/Table";
@@ -88,9 +88,10 @@ const PlayerGames = ({ games }) => {
 const Player = () => {
   const { playerId } = useParams();
 
-  const { data, isFetching } = useQuery(["player", playerId], () =>
-    getPlayer(playerId)
-  );
+  const { data, isFetching } = useQuery({
+    queryKey: ["player", playerId],
+    queryFn: () => getPlayer(playerId),
+  });
 
   const games = _get(data, "games.items", []);
   const alias = _get(data, "alias");

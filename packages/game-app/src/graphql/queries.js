@@ -8,17 +8,12 @@ export const getPlayer = /* GraphQL */ `
       alias
       type
       games {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -41,13 +36,12 @@ export const listPlayers = /* GraphQL */ `
         fobId
         alias
         type
-        games {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       nextToken
+      __typename
     }
   }
 `;
@@ -63,17 +57,12 @@ export const getGame = /* GraphQL */ `
       competitionId
       type
       players {
-        items {
-          id
-          playerID
-          gameID
-          createdAt
-          updatedAt
-        }
         nextToken
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -93,13 +82,12 @@ export const listGames = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       nextToken
+      __typename
     }
   }
 `;
@@ -113,11 +101,9 @@ export const getPlayerGames = /* GraphQL */ `
         fobId
         alias
         type
-        games {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       game {
         id
@@ -128,14 +114,13 @@ export const getPlayerGames = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       createdAt
       updatedAt
+      __typename
     }
   }
 `;
@@ -150,29 +135,12 @@ export const listPlayerGames = /* GraphQL */ `
         id
         playerID
         gameID
-        player {
-          fobId
-          alias
-          type
-          createdAt
-          updatedAt
-        }
-        game {
-          id
-          switched
-          sideAPoints
-          sideBPoints
-          startedAt
-          endedAt
-          competitionId
-          type
-          createdAt
-          updatedAt
-        }
         createdAt
         updatedAt
+        __typename
       }
       nextToken
+      __typename
     }
   }
 `;
@@ -197,13 +165,12 @@ export const playersByAlias = /* GraphQL */ `
         fobId
         alias
         type
-        games {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       nextToken
+      __typename
     }
   }
 `;
@@ -233,13 +200,12 @@ export const gameByCompetition = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       nextToken
+      __typename
     }
   }
 `;
@@ -269,13 +235,12 @@ export const gamesByStartedAt = /* GraphQL */ `
         endedAt
         competitionId
         type
-        players {
-          nextToken
-        }
         createdAt
         updatedAt
+        __typename
       }
       nextToken
+      __typename
     }
   }
 `;

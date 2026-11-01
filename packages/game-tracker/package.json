@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules --disable-warning=ExperimentalWarning\" jest",
     "test:watch": "npm test -- --watch",
     "start": "node src",
     "start:scoreboard": "python src/utils/deviceHandlers/receiveScore.py"
@@ -13,26 +13,28 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@aws-amplify/cli": "^9.1.0",
-    "aws-amplify": "^4.3.26",
-    "aws-sdk": "^2.570.0",
-    "inquirer": "^7.0.2",
-    "lodash": "^4.17.21",
-    "lodash.debounce": "^4.0.8",
-    "mfrc522-rpi": "^2.1.1",
-    "node-fetch": "^2.6.0",
-    "onoff": "^5.0.0",
-    "request": "^2.88.0",
-    "request-promise": "^4.2.5",
-    "xstate": "^4.7.2"
+    "aws-amplify": "^6.22.2",
+    "lodash": "^4.18.1",
+    "xstate": "^5.33.3"
   },
   "devDependencies": {
-    "jest": "^28.1.2",
-    "msw": "^0.42.3"
+    "jest": "^30.0.0",
+    "msw": "^2.0.0"
   },
   "jest": {
     "setupFilesAfterEnv": [
       "<rootDir>/src/setupTests.js"
     ]
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "optionalDependencies": {
+    "mfrc522-rpi": "^2.1.3",
+    "onoff": "^6.0.3",
+    "rpi-softspi": "^1.0.5"
+  },
+  "overrides": {
+    "rpio": "^2.4.2"
   }
 }

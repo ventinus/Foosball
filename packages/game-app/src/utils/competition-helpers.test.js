@@ -12,10 +12,10 @@ describe("CompetitionHelpers", () => {
           ],
           switched: false,
         })
-      ).toEqual({
-        sideA: [{ playerID: "1", alias: "foo" }],
-        sideB: [{ playerID: "2", alias: "bar" }],
-      });
+      ).toEqual([
+        [{ playerID: "1", alias: "foo" }],
+        [{ playerID: "2", alias: "bar" }],
+      ]);
     });
 
     it("should handle a 2 player competition switched", () => {
@@ -28,10 +28,10 @@ describe("CompetitionHelpers", () => {
           ],
           switched: true,
         })
-      ).toEqual({
-        sideA: [{ playerID: "2", alias: "bar" }],
-        sideB: [{ playerID: "1", alias: "foo" }],
-      });
+      ).toEqual([
+        [{ playerID: "2", alias: "bar" }],
+        [{ playerID: "1", alias: "foo" }],
+      ]);
     });
 
     it("should handle a 4 player competition", () => {
@@ -46,16 +46,16 @@ describe("CompetitionHelpers", () => {
           ],
           switched: false,
         })
-      ).toEqual({
-        sideA: [
+      ).toEqual([
+        [
           { playerID: "1", alias: "foo" },
           { playerID: "2", alias: "bar" },
         ],
-        sideB: [
+        [
           { playerID: "3", alias: "baz" },
           { playerID: "4", alias: "pot" },
         ],
-      });
+      ]);
     });
 
     it("should handle a 4 player competition switched", () => {
@@ -70,16 +70,16 @@ describe("CompetitionHelpers", () => {
           ],
           switched: true,
         })
-      ).toEqual({
-        sideA: [
+      ).toEqual([
+        [
           { playerID: "3", alias: "baz" },
           { playerID: "4", alias: "pot" },
         ],
-        sideB: [
+        [
           { playerID: "1", alias: "foo" },
           { playerID: "2", alias: "bar" },
         ],
-      });
+      ]);
     });
   });
 });

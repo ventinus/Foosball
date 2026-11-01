@@ -1,16 +1,15 @@
-const { API, graphqlOperation } = require("aws-amplify");
+const { generateClient } = require("aws-amplify/api");
 const _get = require("lodash/get");
 
 const { formatTeams, toCompetitionId } = require("../utils");
 const gql = require("../graphql/custom");
 
-const executeRequest = (action, options = {}) =>
-  API.graphql(
-    graphqlOperation(action, {
-      ...options,
-      // , authMode: 'AMAZON_COGNITO_USER_POOLS'
-    })
-  );
+// Created lazily so Amplify.configure() has run before the client is built.
+let client;
+const executeRequest = (query, variables = {}) => {
+  client ??= generateClient();
+  return client.graphql({ query, variables });
+};
 
 exports.getCurrentGame = async (competitionId) => {
   const { data } = await executeRequest(gql.gameByCompetition, {
