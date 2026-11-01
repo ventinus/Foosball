@@ -121,6 +121,34 @@ export const listRecentGames = ({ limit, nextToken }) =>
     nextToken,
   });
 
+// Follow nextToken until exhausted (or maxPages) and return every item.
+const collectPages = async (fetchPage, key, maxPages) => {
+  const items = [];
+  let nextToken;
+  for (let page = 0; page < maxPages; page += 1) {
+    const response = await fetchPage(nextToken);
+    items.push(...response[key]);
+    nextToken = response.nextToken;
+    if (!nextToken) break;
+  }
+  return items;
+};
+
+// Every finished game, used to derive records and head-to-head stats.
+export const listFinishedGames = ({ maxPages = 10 } = {}) =>
+  collectPages(
+    (nextToken) => listRecentGames({ limit: 100, nextToken }),
+    "games",
+    maxPages
+  );
+
+export const listAllPlayers = ({ maxPages = 10 } = {}) =>
+  collectPages(
+    (nextToken) => listPlayers({ limit: 100, nextToken }),
+    "players",
+    maxPages
+  );
+
 export const onUpdateGame = (callback) => {
   const subscription = executeRequest(custom.onUpdateGame).subscribe({
     next: ({ data }) => callback(data.onUpdateGame),

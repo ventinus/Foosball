@@ -153,6 +153,7 @@ export const gameByCompetition = /* GraphQL */ `
         sideBPoints
         startedAt
         endedAt
+        competitionId
         players {
           items {
             playerID

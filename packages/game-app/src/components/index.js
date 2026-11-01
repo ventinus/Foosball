@@ -1,6 +1,13 @@
 export { default as Breadcrumbs } from "./Breadcrumbs";
 export { default as GameList } from "./GameList";
+export { default as HeadToHead } from "./HeadToHead";
+export { default as Leaderboard } from "./Leaderboard";
 export { default as Link } from "./Link";
 export { default as ListGames } from "./ListGames";
-export { default as ListPlayers } from "./ListPlayers";
+export { default as PlayerLinks } from "./PlayerLinks";
 export { default as PlayerRegistration } from "./PlayerRegistration";
+export { default as RecordBar } from "./RecordBar";
+export { default as ResultBadge } from "./ResultBadge";
+export { default as Section } from "./Section";
+export { default as SeriesScoreboard } from "./SeriesScoreboard";
+export { default as StatTile } from "./StatTile";

@@ -1,10 +1,9 @@
-import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Button, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import upperFirst from "lodash/fp/upperFirst";
 
-import { GameList } from "@/components";
+import { GameList, Section } from "@/components";
 import { listActiveGames, listRecentGames } from "@/utils/api";
 
 const listGameApiMap = {
@@ -24,8 +23,7 @@ const ListGames = ({ variant }) => {
   const { games = [], nextToken } = data;
 
   return (
-    <Box sx={{ p: "1rem" }}>
-      <Typography variant="h3">{upperFirst(variant)} Games</Typography>
+    <Section title={`${upperFirst(variant)} games`}>
       {!isLoading && !isError && !games.length ? (
         <Typography variant="body1">No {variant} games</Typography>
       ) : null}
@@ -48,7 +46,7 @@ const ListGames = ({ variant }) => {
       {isLoading ? (
         <CircularProgress sx={{ display: "block", margin: "1rem auto 0" }} />
       ) : null}
-    </Box>
+    </Section>
   );
 };
 

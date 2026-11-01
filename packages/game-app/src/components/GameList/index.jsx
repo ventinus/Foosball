@@ -5,61 +5,52 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 
-import { Link } from "@/components";
+import { Link, PlayerLinks } from "@/components";
 import { routes } from "@/utils/routes";
-import { competitionIdToTeams } from "@/utils/competition-helpers";
+import { gameSides } from "@/utils/stats";
 
 const GameList = ({ games }) => {
   if (!games || !games.length) return null;
 
   return (
     <TableContainer>
-      <Table sx={{ minWidth: 650 }} aria-label="simple table">
+      <Table size="small" aria-label="Games">
         <TableHead>
           <TableRow>
             <TableCell>Players</TableCell>
-            <TableCell>Score</TableCell>
+            <TableCell align="center">Score</TableCell>
             <TableCell align="right">
-              {games[0].endedAt ? "End" : "Start"} Date
+              {games[0].endedAt ? "Ended" : "Started"}
             </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {games.map(
-            ({
-              id,
-              competitionId,
-              switched,
-              sideAPoints,
-              sideBPoints,
-              startedAt,
-              endedAt,
-              players,
-            }) => (
-              <TableRow
-                key={id}
-                sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-              >
+          {games.map((game) => {
+            const [a, b] = gameSides(game);
+            if (!a || !b) return null;
+            return (
+              <TableRow key={game.id} hover>
                 <TableCell component="th" scope="row">
-                  <Link to={routes.game(id)}>
-                    {competitionIdToTeams({
-                      competitionId,
-                      switched,
-                      players: players.items,
-                    })
-                      .map((team) =>
-                        team.map((player) => player.player.alias).join(" ")
-                      )
-                      .join(" VS ")}
+                  <PlayerLinks players={a.players} strong={a.won} />
+                  {" vs "}
+                  <PlayerLinks players={b.players} strong={b.won} />
+                </TableCell>
+                <TableCell
+                  align="center"
+                  sx={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}
+                >
+                  <Link to={routes.game(game.id)}>
+                    {a.points} - {b.points}
                   </Link>
                 </TableCell>
-                <TableCell>{`${sideAPoints} - ${sideBPoints}`}</TableCell>
-                <TableCell align="right">
-                  {new Date(endedAt || startedAt).toDateString()}
+                <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                  <Link to={routes.game(game.id)}>
+                    {new Date(game.endedAt || game.startedAt).toDateString()}
+                  </Link>
                 </TableCell>
               </TableRow>
-            )
-          )}
+            );
+          })}
         </TableBody>
       </Table>
     </TableContainer>

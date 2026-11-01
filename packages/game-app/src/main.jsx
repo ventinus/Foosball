@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router";
 import { Amplify } from "aws-amplify";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Container from "@mui/material/Container";
+import CssBaseline from "@mui/material/CssBaseline";
 
 import { Dashboard, Game, Player, Competition } from "@/containers";
 import reportWebVitals from "./reportWebVitals";
@@ -28,16 +30,19 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
+      <CssBaseline />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/games/:gameId" element={<Game />} />
-          <Route path="/players/:playerId" element={<Player />} />
-          <Route
-            path="/competitions/:competitionId"
-            element={<Competition />}
-          />
-        </Routes>
+        <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 } }}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/games/:gameId" element={<Game />} />
+            <Route path="/players/:playerId" element={<Player />} />
+            <Route
+              path="/competitions/:competitionId"
+              element={<Competition />}
+            />
+          </Routes>
+        </Container>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>

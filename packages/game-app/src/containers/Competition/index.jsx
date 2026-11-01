@@ -1,100 +1,129 @@
+import { useMemo } from "react";
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import CircularProgress from "@mui/material/CircularProgress";
-import { Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
-import _get from "lodash/get";
 
-import { Breadcrumbs, Link } from "@/components";
+import {
+  Breadcrumbs,
+  Link,
+  PlayerLinks,
+  ResultBadge,
+  Section,
+  SeriesScoreboard,
+} from "@/components";
 import { getCompetitionGames } from "@/utils/api";
 import { routes } from "@/utils/routes";
-import { competitionIdToTeams } from "@/utils/competition-helpers";
+import { competitionSides, competitionSummary } from "@/utils/stats";
 import { calculateDurationInMin } from "@/utils/time-helpers";
+
+const teamName = (team) => team.players.map((p) => p.alias).join(" & ");
 
 const Competition = () => {
   const { competitionId } = useParams();
 
-  const { data = {}, isFetching } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: ["competition", competitionId],
     queryFn: () => getCompetitionGames({ competitionId }),
   });
-  const games = data.items || [];
-  const teams = competitionIdToTeams({
-    competitionId,
-    players: _get(games, "[0].players.items"),
-    switched: false,
-  })
-    .map((team) => team.map((pl) => pl.player.alias).join(" "))
-    .join(" VS ");
+  const summary = useMemo(
+    () => competitionSummary(competitionId, data?.items ?? []),
+    [competitionId, data]
+  );
+  const [teamA, teamB] = summary.teams;
+  const hasGames = summary.games.length > 0;
 
   return (
-    <div>
+    <Box sx={{ display: "grid", gap: 3 }}>
       <Breadcrumbs />
       {isFetching ? (
         <CircularProgress sx={{ display: "block", margin: "1rem auto 0" }} />
       ) : null}
 
-      <Typography variant="h2">Games for {teams}</Typography>
+      {hasGames ? (
+        <Typography variant="h4" component="h1">
+          <PlayerLinks players={teamA.players} /> vs{" "}
+          <PlayerLinks players={teamB.players} />
+        </Typography>
+      ) : null}
 
-      {!isFetching && !games.length ? (
+      {!isFetching && !hasGames ? (
         <Typography variant="body1">
           Could not find games for this competition
         </Typography>
       ) : null}
 
-      {!isFetching && games.length ? (
-        <TableContainer>
-          <Table sx={{ minWidth: 650 }} aria-label="simple table">
-            <TableHead>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Score</TableCell>
-                <TableCell align="right">Duration</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {games.map(
-                ({
-                  id,
-                  switched,
-                  sideAPoints,
-                  sideBPoints,
-                  startedAt,
-                  endedAt,
-                }) => {
-                  const points = [sideAPoints, sideBPoints];
-                  return (
-                    <TableRow
-                      key={id}
-                      sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-                    >
-                      <TableCell component="th" scope="row">
-                        <Link to={routes.game(id)}>
-                          {new Date(startedAt).toDateString()}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        {(switched ? points.reverse() : points).join(" - ")}
-                      </TableCell>
-                      <TableCell align="right">
-                        {!endedAt
-                          ? "In-progress"
-                          : calculateDurationInMin({ startedAt, endedAt })}
-                      </TableCell>
-                    </TableRow>
-                  );
-                }
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      {hasGames ? (
+        <>
+          <Section title="Series">
+            <SeriesScoreboard summary={summary} />
+          </Section>
+
+          <Section title="Games">
+            <TableContainer>
+              <Table size="small" aria-label="Games in this matchup">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell align="center">{teamName(teamA)}</TableCell>
+                    <TableCell align="center">{teamName(teamB)}</TableCell>
+                    <TableCell>Winner</TableCell>
+                    <TableCell align="right">Duration</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {summary.games.map((game) => {
+                    const sides = competitionSides(game);
+                    const winner = sides.find((side) => side.won);
+                    return (
+                      <TableRow key={game.id} hover>
+                        <TableCell component="th" scope="row" sx={{ whiteSpace: "nowrap" }}>
+                          <Link to={routes.game(game.id)}>
+                            {new Date(game.startedAt).toDateString()}
+                          </Link>
+                        </TableCell>
+                        {sides.map((side, i) => (
+                          <TableCell
+                            key={i}
+                            align="center"
+                            sx={{
+                              fontWeight: side.won ? 700 : 400,
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {side.points}
+                          </TableCell>
+                        ))}
+                        <TableCell>
+                          {!game.endedAt ? (
+                            <ResultBadge result={null} />
+                          ) : winner ? (
+                            teamName(winner)
+                          ) : (
+                            "Tie"
+                          )}
+                        </TableCell>
+                        <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                          {!game.endedAt
+                            ? "In-progress"
+                            : calculateDurationInMin(game)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Section>
+        </>
       ) : null}
-    </div>
+    </Box>
   );
 };
 
