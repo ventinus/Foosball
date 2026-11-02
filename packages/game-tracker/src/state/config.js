@@ -142,6 +142,12 @@ exports.gameMachine = setup({ actions, actors, guards }).createMachine({
         src: "completeGame",
         input: ({ context }) => ({ currentGame: context.currentGame }),
         onDone: "inactive",
+        // Saves are queued locally (src/sync), so this only fails if that
+        // does; don't get stuck here if it happens.
+        onError: {
+          target: "inactive",
+          actions: "logCompleteGameFailure",
+        },
       },
     },
   },

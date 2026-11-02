@@ -2,6 +2,8 @@ node_modules
 config
 dist
 forever/logs
+# offline sync state (players, unsent games), see src/sync
+/data
 
 #amplify-do-not-edit-begin
 amplify/\#current-cloud-backend

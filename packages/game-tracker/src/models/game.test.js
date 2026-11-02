@@ -1,10 +1,9 @@
 const { Game } = require(".");
-const api = require("../utils/api");
+const sync = require("../sync");
 
 jest.useFakeTimers();
-jest.mock("../utils/api");
 jest.setSystemTime(new Date("2020-01-01"));
-jest.spyOn(api, "updateGame");
+jest.spyOn(sync, "saveGame").mockImplementation(() => {});
 
 let game;
 
@@ -62,11 +61,12 @@ describe("Game", () => {
     game.scorePoint(0);
     game.scorePoint(0);
     game.updateGame();
-    expect(api.updateGame).toHaveBeenCalledWith(
+    expect(sync.saveGame).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "game-id",
         sideAPoints: 3,
         sideBPoints: 0,
+        competitionId: "team1Vteam2",
       })
     );
   });
@@ -74,7 +74,7 @@ describe("Game", () => {
   it("should reset the score", () => {
     game = init({ sideAPoints: 3, sideBPoints: 2, startedAt: "in-the-past" });
     game.resetScore();
-    expect(api.updateGame).toHaveBeenCalledWith(
+    expect(sync.saveGame).toHaveBeenCalledWith(
       expect.objectContaining({
         sideAPoints: 0,
         sideBPoints: 0,
@@ -87,7 +87,7 @@ describe("Game", () => {
     game = init();
     game.endGame();
 
-    expect(api.updateGame).toHaveBeenCalledWith(
+    expect(sync.saveGame).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "game-id",
         sideAPoints: 0,

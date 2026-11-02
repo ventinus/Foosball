@@ -23,8 +23,14 @@ const {
   DENY,
 } = require("./state/actionTypes");
 const { childProcess, minToMs } = require("./utils");
+const sync = require("./sync");
 
 Amplify.configure(awsconfig);
+
+// Players and games are saved locally first and sent to the API when it's
+// reachable, so the table keeps working offline.
+sync.init({ dataDir: sync.DEFAULT_DATA_DIR });
+sync.refreshPlayers();
 
 const gameService = createActor(gameMachine);
 let currentState;

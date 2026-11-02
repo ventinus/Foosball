@@ -27,10 +27,15 @@ jest.mock("../utils/helpers", () => ({
   showCompetition: jest.fn(),
 }));
 
-// Fire-and-forget saves aren't awaited by the machine; stub them so no request
-// outlives its test (MSW can't match a request that lands during the next test).
-jest.spyOn(api, "updateGame").mockResolvedValue(null);
-jest.spyOn(api, "createPlayer").mockImplementation(async (player) => player);
+
+const sync = require("../sync");
+
+// Writes the sync layer has queued for the API, by type.
+const queued = (type) =>
+  sync
+    .pending()
+    .filter((op) => op.type === type)
+    .map((op) => op.input);
 
 const UNKNOWN = "UNKNOWN";
 
@@ -55,7 +60,11 @@ const reach = (value) => waitFor(actor, (s) => s.matches(value));
 
 describe("gameMachine", () => {
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
+    // Fresh memory-only state that queues writes but never sends them, so no
+    // request outlives its test (reads still go to MSW).
+    sync.init({ autoFlush: false });
   });
 
   afterEach(() => {
@@ -225,7 +234,9 @@ describe("gameMachine", () => {
       ]);
 
       send(CONFIRM);
-      expect(api.createPlayer).toHaveBeenCalledWith({ id: "888", alias: "ab" });
+      expect(queued("createPlayer")).toEqual([
+        { fobId: "888", alias: "ab", type: "Player" },
+      ]);
       expect(state().context.newPlayer).toEqual({ id: "0", alias: "" });
       expect(state().context.players).toEqual([{ id: "888", alias: "ab" }]);
       expect(state().value).toBe("inactive");
@@ -237,7 +248,9 @@ describe("gameMachine", () => {
 
     it("should log, not reject, when creating a player fails", async () => {
       const log = jest.spyOn(console, "log").mockImplementation(() => {});
-      api.createPlayer.mockRejectedValueOnce(new Error("network down"));
+      jest.spyOn(sync, "registerPlayer").mockImplementationOnce(() => {
+        throw new Error("disk full");
+      });
       startAt("registration", { newPlayer: { id: "888", alias: "ab" } });
 
       send(CONFIRM);
@@ -250,7 +263,9 @@ describe("gameMachine", () => {
 
     it("should log, not reject, when saving a point fails", async () => {
       const log = jest.spyOn(console, "log").mockImplementation(() => {});
-      api.updateGame.mockRejectedValueOnce(new Error("network down"));
+      jest.spyOn(sync, "saveGame").mockImplementationOnce(() => {
+        throw new Error("disk full");
+      });
       startAt("active", {
         players: [{ id: "1" }, { id: "2" }],
         currentGame: Game("1", "2", { sideAPoints: 0, sideBPoints: 0 }),
@@ -285,6 +300,22 @@ describe("gameMachine", () => {
         "Would you like to resume your previous unfinished game?"
       );
     });
+
+    it("should not resume a game that was finished here but not sent yet", async () => {
+      sync.saveGame({
+        id: "game-id",
+        competitionId: "1::2V3::4",
+        sideAPoints: 5,
+        sideBPoints: 3,
+        endedAt: new Date().toISOString(),
+      });
+      start({ players: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }] });
+      send(INITIATE_GAME);
+      await reach("active");
+
+      expect(state().context.currentGame.teamPoints).toEqual([0, 0]);
+      expect(state().context.currentGame.props.id).not.toBe("game-id");
+    });
   });
 
   describe("shouldResume", () => {
@@ -306,7 +337,7 @@ describe("gameMachine", () => {
       });
 
       send(DENY);
-      expect(api.updateGame).toHaveBeenCalledWith(
+      expect(queued("updateGame")).toContainEqual(
         expect.objectContaining({
           sideAPoints: 0,
           sideBPoints: 0,
@@ -352,7 +383,10 @@ describe("gameMachine", () => {
       send(SCORE_POINT, { index: 1 });
       expect(state().context.currentGame.teamPoints).toEqual([1, 1]);
 
-      expect(api.updateGame).toHaveBeenCalledTimes(2);
+      // the two saves are merged while waiting to be sent
+      expect(queued("updateGame")).toEqual([
+        expect.objectContaining({ sideAPoints: 1, sideBPoints: 1 }),
+      ]);
     });
 
     it("should make the game complete when the first team wins", () => {
@@ -367,7 +401,7 @@ describe("gameMachine", () => {
       expect(state().value).toBe("complete");
       expect(currentGame.teamPoints).toEqual([5, 3]);
       expect(currentGame.props.endedAt).not.toBe(null);
-      expect(api.updateGame).toHaveBeenCalledWith(
+      expect(queued("updateGame")).toContainEqual(
         expect.objectContaining({ endedAt: expect.any(String) })
       );
     });
@@ -384,7 +418,7 @@ describe("gameMachine", () => {
       expect(state().value).toBe("complete");
       expect(currentGame.teamPoints).toEqual([4, 5]);
       expect(currentGame.props.endedAt).not.toBe(null);
-      expect(api.updateGame).toHaveBeenCalledWith(
+      expect(queued("updateGame")).toContainEqual(
         expect.objectContaining({ endedAt: expect.any(String) })
       );
     });
@@ -399,6 +433,25 @@ describe("gameMachine", () => {
 
       expect(state().context.players).toEqual([]);
       expect(state().context.currentGame).toBe(null);
+    });
+
+    it("should return to inactive and reset when saving the completed game fails", async () => {
+      const log = jest.spyOn(console, "log").mockImplementation(() => null);
+      const currentGame = Game("1", "2", { sideAPoints: 4, sideBPoints: 4 });
+      jest
+        .spyOn(currentGame, "endGame")
+        .mockRejectedValueOnce(new Error("disk full"));
+      startAt("active", { players: [1, 2], currentGame });
+      send(SCORE_POINT, { index: 1 });
+      await reach("inactive");
+
+      expect(state().context.players).toEqual([]);
+      expect(state().context.currentGame).toBe(null);
+      expect(log).toHaveBeenCalledWith(
+        "completeGame failed",
+        expect.any(Error)
+      );
+      log.mockRestore();
     });
   });
 
@@ -440,6 +493,91 @@ describe("gameMachine", () => {
       expect(state().value).toBe("inactive");
       expect(state().context.currentGame).toBe(null);
       expect(state().context.players).toEqual([]);
+    });
+  });
+
+  describe("offline", () => {
+    const offline = () => {
+      jest.spyOn(console, "log").mockImplementation(() => null);
+      const down = () => Promise.reject(new Error("network down"));
+      jest.spyOn(api, "findPlayer").mockImplementation(down);
+      jest.spyOn(api, "getCurrentGame").mockImplementation(down);
+    };
+
+    it("should recognize a player seen before while offline", async () => {
+      start();
+      send(BADGE_SCAN, { id: "12345" });
+      await waitFor(actor, (s) => s.context.players.length === 1);
+
+      offline();
+      actor.stop();
+      start();
+      send(BADGE_SCAN, { id: "12345" });
+      await waitFor(actor, (s) => s.context.players.length === 1);
+
+      expect(state().context.players).toEqual([
+        { id: "12345", alias: "player-exists" },
+      ]);
+    });
+
+    it("should register an unknown badge while offline", async () => {
+      offline();
+      start();
+      send(BADGE_SCAN, { id: "777" });
+      await reach("registration");
+      send(APPEND_CHAR, { character: "z" });
+      send(CONFIRM);
+
+      expect(state().context.players).toEqual([{ id: "777", alias: "z" }]);
+      expect(queued("createPlayer")).toEqual([
+        { fobId: "777", alias: "z", type: "Player" },
+      ]);
+    });
+
+    it("should play a whole game offline and queue it to be sent", async () => {
+      offline();
+      start({ players: [{ id: "1" }, { id: "2" }, { id: "3" }] });
+      send(INITIATE_GAME);
+      await reach("active");
+      const { id } = state().context.currentGame.props;
+
+      for (let i = 0; i < 5; i++) send(SCORE_POINT, { index: 1 });
+      await reach("inactive");
+
+      expect(queued("createGame")).toEqual([
+        expect.objectContaining({ id, competitionId: "1::2V3", type: "Game" }),
+      ]);
+      expect(queued("createPlayerGames").map((pg) => pg.playerID)).toEqual([
+        "1",
+        "2",
+        "3",
+      ]);
+      expect(queued("updateGame")).toEqual([
+        expect.objectContaining({
+          id,
+          sideAPoints: 0,
+          sideBPoints: 5,
+          endedAt: expect.any(String),
+        }),
+      ]);
+    });
+
+    it("should offer to resume a game left unfinished while offline", async () => {
+      offline();
+      start({ players: [{ id: "1" }, { id: "2" }] });
+      send(INITIATE_GAME);
+      await reach("active");
+      send(SCORE_POINT, { index: 0 });
+      // nobody plays for a while, so the game is abandoned unfinished
+      send(WARN_PAUSE);
+      send(PAUSE);
+      await reach("inactive");
+
+      actor.stop();
+      start({ players: [{ id: "1" }, { id: "2" }] });
+      send(INITIATE_GAME);
+      await reach("shouldResume");
+      expect(state().context.currentGame.teamPoints).toEqual([1, 0]);
     });
   });
 });

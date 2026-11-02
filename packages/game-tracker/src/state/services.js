@@ -1,19 +1,17 @@
 const { fromPromise } = require("xstate");
 const { Game, Player } = require("../models");
 const { formatTeams, toCompetitionId } = require("../utils");
-const api = require("../utils/api");
+const sync = require("../sync");
 
+// The game is created locally (with its own id) and sent to the API when it's
+// reachable, so play can start while the table is offline.
 const createGame = async ({ players }) => {
   const [team1, team2] = formatTeams(players);
-  const competitionId = toCompetitionId(team1, team2);
-
-  const game = await api.createGame(
-    {
-      competitionId,
-      switched: false, // TODO: how to determine?
-    },
-    ...players
-  );
+  const game = sync.createGame({
+    competitionId: toCompetitionId(team1, team2),
+    playerIds: players.map(({ id }) => `${id}`),
+    switched: false, // TODO: how to determine?
+  });
   return Game(team1, team2, game);
 };
 
@@ -25,7 +23,7 @@ exports.findOrCreateGame = fromPromise(async ({ input: { players } }) => {
 
   const competitionId = toCompetitionId(team1, team2);
 
-  const game = await api.getCurrentGame(competitionId);
+  const game = await sync.findUnfinishedGame(competitionId);
   if (game) throw Game(team1, team2, game);
 
   return await createGame({ players });

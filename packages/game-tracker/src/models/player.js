@@ -1,4 +1,4 @@
-const api = require("../utils/api");
+const sync = require("../sync");
 
 const Player = ({ id, alias }) => {
   const props = {
@@ -13,8 +13,10 @@ const Player = ({ id, alias }) => {
   };
 };
 
-Player.find = (id) => api.findPlayer(id);
+// Falls back to locally known players when the API can't be reached.
+Player.find = (id) => sync.findPlayer(id);
 
-Player.create = ({ id, alias }) => api.createPlayer({ id, alias });
+// Saved locally right away and sent to the API when it's reachable.
+Player.create = async ({ id, alias }) => sync.registerPlayer({ id, alias });
 
 module.exports = Player;

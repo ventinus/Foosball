@@ -46,6 +46,18 @@ exports.gameByCompetition = /* GraphQL */ `
   }
 `;
 
+exports.playersByAlias = /* GraphQL */ `
+  query PlayersByAlias($type: String!, $limit: Int, $nextToken: String) {
+    playersByAlias(type: $type, limit: $limit, nextToken: $nextToken) {
+      items {
+        fobId
+        alias
+      }
+      nextToken
+    }
+  }
+`;
+
 // *********************************
 // MUTATIONS
 // *********************************
@@ -57,27 +69,6 @@ exports.createPlayer = /* GraphQL */ `
     createPlayer(input: $input, condition: $condition) {
       fobId
       alias
-      games {
-        items {
-          game {
-            competitionId
-            id
-            players {
-              items {
-                player {
-                  alias
-                  fobId
-                }
-              }
-            }
-            endedAt
-            sideAPoints
-            sideBPoints
-            startedAt
-            switched
-          }
-        }
-      }
     }
   }
 `;

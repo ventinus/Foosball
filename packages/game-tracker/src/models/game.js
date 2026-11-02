@@ -1,5 +1,5 @@
 const { pick } = require("lodash");
-const api = require("../utils/api");
+const sync = require("../sync");
 const { toCompetitionId } = require("../utils");
 
 const Game = (t1, t2, initialProps) => {
@@ -20,10 +20,12 @@ const Game = (t1, t2, initialProps) => {
 
   const competitionId = toCompetitionId(props.t1, props.t2);
 
-  const updateGame = () =>
-    api.updateGame(
-      pick(props, ["id", "sideAPoints", "sideBPoints", "endedAt", "startedAt"])
-    );
+  // Saved locally right away and sent to the API when it's reachable.
+  const updateGame = async () =>
+    sync.saveGame({
+      ...pick(props, ["id", "sideAPoints", "sideBPoints", "endedAt", "startedAt"]),
+      competitionId,
+    });
 
   const resetScore = () => {
     props.sideAPoints = 0;

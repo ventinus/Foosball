@@ -103,6 +103,9 @@ exports.updateGame = ({ context: { currentGame } }) => {
   currentGame.updateGame().catch(logFailure("updateGame"));
 };
 
+exports.logCompleteGameFailure = ({ event }) =>
+  logFailure("completeGame")(event.error);
+
 exports.setWarning = () => {
   prompt("Are you still playing this game?");
   beep();
