@@ -1,5 +1,9 @@
+const { isValidPlayerCount } = require("../utils/helpers");
+
 // ---------------- Guards ----------------- //
-exports.canActivate = ({ context: { players } }) => players.length >= 2;
+// 1v1, 1v2/2v1 or 2v2
+exports.canActivate = ({ context: { players } }) =>
+  isValidPlayerCount(players.length);
 
 // The badge reader sends numeric ids, but ids from the API (fobId) are strings.
 exports.notPresent = ({ context: { players }, event: { id } }) =>

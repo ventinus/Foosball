@@ -189,6 +189,20 @@ describe("gameMachine", () => {
       expect(state().value).toBe("pending");
       await reach("active");
     });
+
+    it("should initiate a 2v1 game", async () => {
+      start({ players: [{ id: 1 }, { id: 2 }, { id: 3 }] });
+      send(INITIATE_GAME);
+      expect(state().value).toBe("pending");
+      await reach("active");
+      expect(state().context.currentGame.competitionId).toBe("1::2V3");
+    });
+
+    it("should not initiate the game with one player", () => {
+      start({ players: [{ id: 1 }] });
+      send(INITIATE_GAME);
+      expect(state().value).toBe("inactive");
+    });
   });
 
   describe("registration", () => {

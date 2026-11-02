@@ -48,6 +48,32 @@ describe("stats", () => {
       expect(a.ids).toEqual(["1", "2"]);
       expect(b).toMatchObject({ ids: ["3", "4"], won: true });
     });
+
+    it("splits uneven (1v2) teams", () => {
+      const [a, b] = gameSides(game("1", "1::2V3", 4, 5));
+      expect(a).toMatchObject({ ids: ["1", "2"], won: false });
+      expect(b.players).toEqual([{ id: "3", alias: "cat" }]);
+      expect(b.won).toBe(true);
+    });
+
+    it("counts a 1v2 game for every player but not as singles", () => {
+      const games = [game("1", "1::2V3", 4, 5)];
+      const board = leaderboard([], games);
+      expect(board.find((row) => row.id === "3")).toMatchObject({
+        games: 1,
+        wins: 1,
+      });
+      expect(board.find((row) => row.id === "1")).toMatchObject({
+        games: 1,
+        losses: 1,
+      });
+      expect(headToHead(games, { singlesOnly: true }).players.size).toBe(0);
+      expect(headToHead(games).get("3", "1")).toEqual({
+        games: 1,
+        wins: 1,
+        losses: 0,
+      });
+    });
   });
 
   describe("playerSummary", () => {

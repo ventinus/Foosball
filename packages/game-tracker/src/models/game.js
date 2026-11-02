@@ -3,7 +3,7 @@ const api = require("../utils/api");
 const { toCompetitionId } = require("../utils");
 
 const Game = (t1, t2, initialProps) => {
-  if (!t1 && !t2) {
+  if (!t1 || !t2) {
     console.log("Two teams must be present to create a game, ending");
     return;
   }
