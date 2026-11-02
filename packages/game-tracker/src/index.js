@@ -1,6 +1,7 @@
 const { createActor } = require("xstate");
 const readline = require("readline");
 const debounce = require("lodash/debounce");
+const throttle = require("lodash/throttle");
 const { Amplify } = require("aws-amplify");
 
 // `amplify pull` writes aws-exports.js as an ES module (`export default`); Node 24's
@@ -36,7 +37,8 @@ const onBadgeScan = ({ message, id }) => {
   if (message) {
     console.log("FROM SCAN", message);
   } else if (id) {
-    gameService.send({ type: BADGE_SCAN, id });
+    // normalize to match the string fobIds the API returns
+    gameService.send({ type: BADGE_SCAN, id: String(id) });
   }
 };
 
@@ -68,6 +70,9 @@ const onInputKeypress = (keyName) => {
   }
 };
 
+const INACTIVITY_WARN_MS = minToMs(2); // no vibration for this long → warn
+const PAUSE_GRACE_MS = minToMs(1); // time to respond to the warning before the game resets
+
 let gameWarnId = 0;
 let gamePauseId = 0;
 const onVibration = () => {
@@ -78,8 +83,11 @@ const onVibration = () => {
 
   gameWarnId = setTimeout(() => {
     gameService.send({ type: WARN_PAUSE });
-    gamePauseId = setTimeout(() => gameService.send({ type: PAUSE }), 1);
-  }, minToMs(2));
+    gamePauseId = setTimeout(
+      () => gameService.send({ type: PAUSE }),
+      PAUSE_GRACE_MS
+    );
+  }, INACTIVITY_WARN_MS);
 };
 
 const onBadgeScanError = (err) => console.log("onBadgeScanError", err);
@@ -98,13 +106,18 @@ const scorePointChild = childProcess(
   onBreakBeam,
   onBreakBeamError
 );
+// throttle (not debounce): continuous vibration must keep resetting the inactivity timer
 const vibrationChild = childProcess(
   "vibration.js",
-  debounce(onVibration, 300, debounceOptions)
+  throttle(onVibration, 300, debounceOptions)
 );
 
 readline.emitKeypressEvents(process.stdin);
 process.stdin.setRawMode(true);
+
+// Debounce only the y/n/return app keys (guards against double-confirming);
+// alias typing during registration must not drop fast keystrokes.
+const debouncedAppKeypress = debounce(onAppKeypress, 300, debounceOptions);
 
 const handleKeypress = (str, key) => {
   if (key.ctrl && key.name === "c") {
@@ -115,10 +128,7 @@ const handleKeypress = (str, key) => {
   } else if (currentState === "registration") {
     onInputKeypress(key.name);
   } else {
-    onAppKeypress(key.name);
+    debouncedAppKeypress(key.name);
   }
 };
-process.stdin.on(
-  "keypress",
-  debounce(handleKeypress, 300, { leading: true, trailing: false })
-);
+process.stdin.on("keypress", handleKeypress);
