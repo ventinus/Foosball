@@ -1,40 +1,37 @@
-pi 1
+Tracker Pi wiring (Pi Zero W). Everything runs on this one Pi.
+"pin N" = physical header pin, "GPIO N" = BCM number (what the code uses).
+src/utils/gpio.js converts BCM numbers for newer kernels, so these never change.
 
-RFID:
-SDA to 24
-SCK to 23
-MOSI to 19
-MISO to 21
-IRQ to X
-GND to GND
-RST to 22
-3.3V to 3.3V
+RFID reader (MFRC522), via rpi-softspi in readCard.js
+  SDA  -> pin 24 (GPIO8)
+  SCK  -> pin 23 (GPIO11)
+  MOSI -> pin 19 (GPIO10)
+  MISO -> pin 21 (GPIO9)
+  RST  -> pin 22 (GPIO25)
+  IRQ  -> not connected
+  3.3V -> 3.3V
+  GND  -> GND
 
-Buzzer:
-GND
-GPIO17
+Buzzer (beep.js)
+  + -> GPIO17 (pin 11)
+  - -> GND
 
+Vibration sensor (vibration.js)
+  OUT -> GPIO18 (pin 12)
+  (the code has "TODO: determine correct pin usage"; earlier notes said GPIO17,
+  which is the buzzer)
 
-vibration sensor
-GPIO17
+Break-beam sensors (scorePoint.js)
+  side A goal  -> GPIO4 (pin 7)
+  side B goal  -> GPIO5 (pin 29)
+  game start   -> GPIO6 (pin 31)   (any beam after the first two sends INITIATE_GAME)
 
-goal sensors
-GPIO4, GPIO5, GPIO6
+LED matrix scoreboard, 2x MAX7219 8x8 modules (scoreboard.js; bit-banged, no SPI overlay)
+  DIN -> GPIO20 (pin 38)
+  CLK -> GPIO21 (pin 40)
+  CS  -> GPIO16 (pin 36)
+  VCC -> 5V
+  GND -> GND
 
-game start sensor
-GPIO6
-
-oled screen
-https://learn.adafruit.com/adafruit-pioled-128x32-mini-oled-for-raspberry-pi/usage
-https://pimylifeup.com/raspberry-pi-i2c/
-
-
-pi 2
-
-dot matrix:
-CLK to 23
-CS to 24
-DIN to 19
-GND to GND
-VCC to 5v
-
+OLED screen (display.py, I2C; not used by the tracker)
+  https://learn.adafruit.com/adafruit-pioled-128x32-mini-oled-for-raspberry-pi/usage

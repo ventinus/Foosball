@@ -1,6 +1,7 @@
 const { Gpio } = require('onoff')
+const { pin } = require('../gpio')
 
-const sensors = ['4', '5', '6'].map((pin) => new Gpio(pin, 'in', 'both'))
+const sensors = ['4', '5', '6'].map((bcm) => new Gpio(pin(bcm), 'in', 'both'))
 
 const trackingValues = [0, 0]
 

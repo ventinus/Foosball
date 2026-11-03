@@ -1,7 +1,8 @@
 const { Gpio } = require('onoff')
+const { pin: gpio } = require('../gpio')
 
 const pin = 6
-const sensor = new Gpio(pin, 'in', 'both')
+const sensor = new Gpio(gpio(pin), 'in', 'both')
 
 let isPushed = false
 

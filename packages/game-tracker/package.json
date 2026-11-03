@@ -7,7 +7,7 @@
     "test": "NODE_OPTIONS=\"--experimental-vm-modules --disable-warning=ExperimentalWarning\" jest",
     "test:watch": "npm test -- --watch",
     "start": "node src",
-    "start:scoreboard": "python src/utils/deviceHandlers/receiveScore.py"
+    "scoreboard:test": "node src/utils/deviceHandlers/scoreboard.js --test"
   },
   "keywords": [],
   "author": "",
@@ -27,7 +27,7 @@
     ]
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22.12"
   },
   "optionalDependencies": {
     "mfrc522-rpi": "^2.1.3",

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-A foosball score-tracking system made of two independent npm packages under `packages/` (no root `package.json` or workspace tooling, so run commands inside each package directory). Both require **Node 24** (`.nvmrc`, `engines`).
+A foosball score-tracking system made of two independent npm packages under `packages/` (no root `package.json` or workspace tooling, so run commands inside each package directory). Develop on **Node 24** (`.nvmrc`). game-app requires it; game-tracker's runtime only needs Node 22.12+, because the Pi Zero W tables can't run Node 24 (no ARMv6 build). Its tests still need Node 24.9+, which Jest requires to load MSW's ESM-only dependencies. Don't use Node 24-only APIs in game-tracker runtime code.
 
 - **`packages/game-tracker`**: a Node (CommonJS) process that runs on a Raspberry Pi. It reads hardware sensors (RFID badge reader, break-beam goal sensors, vibration sensor, buzzer), runs the game as an XState v5 machine, and saves players and games to the AWS AppSync GraphQL API through Amplify v6.
 - **`packages/game-app`**: a React 19 web app (Vite, MUI 9, @tanstack/react-query 5, react-router 8) for viewing games, players and competitions from the same API, including live score updates through GraphQL subscriptions.
@@ -17,7 +17,8 @@ Both packages talk to the same Amplify Gen 1 backend (`gameservice`, region us-w
 - `npm start`: runs `node src` (needs Pi GPIO/SPI hardware and a TTY, since stdin is put in raw mode)
 - `npm test` / `npm run test:watch`: Jest 30. The script sets `--experimental-vm-modules` because MSW 2 pulls in ESM-only deps, so run tests through `npm test -- <args>` rather than bare `npx jest`.
 - Single test: `npm test -- src/state/config.test.js` or `npm test -- -t "test name"`
-- `npm run start:scoreboard`: Python LED-matrix scoreboard listener (runs on the second Pi)
+- `npm run scoreboard:test` (on the Pi): draws a test pattern on the LED matrix to check wiring and orientation. Correct a rotated, mirrored or swapped display with `SCOREBOARD_ORIENTATION` (0/90/180/270), `SCOREBOARD_MIRROR=1` and `SCOREBOARD_REVERSE=1`. `SCOREBOARD_INTENSITY` (0-15) sets brightness.
+- Pi setup (OS, Comitup Wi-Fi, Node 22, autostart on tty1, calibration) is in `packages/game-tracker/SETUP.md`; wiring is in `pin-mapping.txt`.
 - Hardware packages (`onoff`, `mfrc522-rpi`, `rpi-softspi`) are `optionalDependencies`, so `npm install` works off-Pi. An `overrides` entry forces `rpio@^2`, because the `rpio@1` that `mfrc522-rpi` asks for doesn't compile on Node 24.
 
 ### game-app (`cd packages/game-app`)
@@ -47,7 +48,7 @@ Each package has a single `utils/api.js` built on Amplify v6 `generateClient()` 
 - `src/models/game.js` is a closure-based Game object that mutates its own score and saves itself through `src/sync`. Score saves are fire-and-forget (not awaited by the machine).
 - **Offline-first sync (`src/sync`)**: the tracker never writes to the API directly. Players, games and score updates are recorded in `data/sync.json` (gitignored; `TRACKER_DATA_DIR` overrides the location) and queued in an outbox that `sync.js` sends in order, retrying with backoff while offline. Games get client-generated ids (PlayerGames ids are `<gameId>::<playerId>`), so resent creates are harmless: a `ConditionalCheckFailed` error counts as sent. Errors without an AppSync `errorType` (network, HTTP, expired key) are retried indefinitely; AppSync rejections are retried a few times, then moved to `failed`. Lookups (`findPlayer`, `findUnfinishedGame`) try the API with a timeout and fall back to the local player cache and unsent games, and never throw for network errors. A game's local copy is dropped once nothing about it is queued.
 - The win condition is hard-coded in `state/guards.js` (`gameComplete`: first to 5).
-- The Python scripts drive displays: `sendScore.py` sends the score over UDP (port 5005) to `receiveScore.py` on the second Pi, which has a hard-coded IP. `pin-mapping.txt` documents the GPIO wiring.
+- The LED-matrix scoreboard (two MAX7219 8x8 modules) is wired to the tracker Pi and driven by the forked `deviceHandlers/scoreboard.js`, which bit-bangs three GPIO pins through onoff. Every onoff pin goes through `pin()` in `utils/gpio.js`, which adds the sysfs base of the Pi's GPIO controller (512 rather than 0 on newer kernels). `index.js` sends it `{ view }` messages whenever `scoreboardView(snapshot)` changes. The rendering, driver and the 30s hold of a final score are pure modules in `utils/scoreboard/`, testable off the Pi. `pin-mapping.txt` documents the GPIO wiring. `display.py` (an I2C OLED) is not wired into the tracker.
 
 ### game-tracker tests
 - MSW 2 (`src/mocks/handlers.js`) intercepts AppSync GraphQL operations **by operation name** (e.g. `GetPlayer`, `GameByCompetition`), with `onUnhandledRequest: "error"`. If you add or rename a query in `src/graphql/custom.js`, update the handlers to match.

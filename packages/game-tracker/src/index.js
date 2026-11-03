@@ -23,6 +23,7 @@ const {
   DENY,
 } = require("./state/actionTypes");
 const { childProcess, minToMs } = require("./utils");
+const { scoreboardView } = require("./utils/scoreboard/view");
 const sync = require("./sync");
 
 Amplify.configure(awsconfig);
@@ -32,10 +33,28 @@ Amplify.configure(awsconfig);
 sync.init({ dataDir: sync.DEFAULT_DATA_DIR });
 sync.refreshPlayers();
 
+// The LED matrix scoreboard wired to this Pi.
+const scoreboardChild = childProcess(
+  "scoreboard.js",
+  (message) => console.log("scoreboard", message),
+  (err) => console.log("onScoreboardError", err)
+);
+
+// Sends the scoreboard what to show, only when it changes.
+let lastScoreboardView;
+const updateScoreboard = (snapshot) => {
+  const view = scoreboardView(snapshot);
+  const key = JSON.stringify(view);
+  if (key === lastScoreboardView || !scoreboardChild.connected) return;
+  lastScoreboardView = key;
+  scoreboardChild.send({ view });
+};
+
 const gameService = createActor(gameMachine);
 let currentState;
 gameService.subscribe((snapshot) => {
   currentState = snapshot.value;
+  updateScoreboard(snapshot);
 });
 gameService.start();
 
@@ -130,6 +149,7 @@ const handleKeypress = (str, key) => {
     badgeScanChild.kill("SIGKILL");
     scorePointChild.kill("SIGKILL");
     vibrationChild.kill("SIGKILL");
+    scoreboardChild.kill("SIGTERM"); // lets it blank the board
     process.exit();
   } else if (currentState === "registration") {
     onInputKeypress(key.name);
