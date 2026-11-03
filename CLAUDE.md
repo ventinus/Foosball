@@ -18,7 +18,7 @@ Both packages talk to the same Amplify Gen 1 backend (`gameservice`, region us-w
 - `npm test` / `npm run test:watch`: Jest 30. The script sets `--experimental-vm-modules` because MSW 2 pulls in ESM-only deps, so run tests through `npm test -- <args>` rather than bare `npx jest`.
 - Single test: `npm test -- src/state/config.test.js` or `npm test -- -t "test name"`
 - `npm run scoreboard:test` (on the Pi): draws a test pattern on the LED matrix to check wiring and orientation. Correct a rotated, mirrored or swapped display with `SCOREBOARD_ORIENTATION` (0/90/180/270), `SCOREBOARD_MIRROR=1` and `SCOREBOARD_REVERSE=1`. `SCOREBOARD_INTENSITY` (0-15) sets brightness.
-- Pi setup (OS, Comitup Wi-Fi, Node 22, autostart on tty1, calibration) is in `packages/game-tracker/SETUP.md`; wiring is in `pin-mapping.txt`.
+- Pi setup (OS, Comitup Wi-Fi, Node 22, autostart on tty1, calibration) is in `packages/game-tracker/SETUP.md`; wiring is in `pin-mapping.txt`. `setup.sh` does all of it on a fresh Pi (idempotent) and makes `~/.bash_profile` run `start.sh` on tty1, which loads per-table settings from the gitignored `tracker.env` and restarts `node src` when it exits.
 - Hardware packages (`onoff`, `mfrc522-rpi`, `rpi-softspi`) are `optionalDependencies`, so `npm install` works off-Pi. An `overrides` entry forces `rpio@^2`, because the `rpio@1` that `mfrc522-rpi` asks for doesn't compile on Node 24.
 
 ### game-app (`cd packages/game-app`)

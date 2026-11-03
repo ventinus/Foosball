@@ -29,8 +29,20 @@ CLK and CS.
 
 In [Raspberry Pi Imager](https://www.raspberrypi.com/software/):
 
-1. Device: **Raspberry Pi Zero**. OS: **Raspberry Pi OS Lite (32-bit)**. The
-   Zero W can't run the 64-bit OS.
+1. Device: **Raspberry Pi Zero**. OS: Raspberry Pi OS (other) →
+   **Raspberry Pi OS (Legacy) Lite 32-bit**, which is Bookworm. The Zero W
+   can't run the 64-bit OS. Don't use the newer Trixie image yet:
+   - Comitup has a reported failure on Trixie: dnsmasq can't bind port 53 and
+     `wlan0` isn't found
+     ([davesteele/comitup#269](https://github.com/davesteele/comitup/issues/269),
+     no fix as of November 2026). Without Comitup the table can't join Wi-Fi.
+   - This setup (sysfs GPIO for `onoff`, the `rpio` build, `raspi-config
+     nonint`) has only been written against Bookworm.
+   - Trixie gains nothing here: the tracker brings its own Node 22, and
+     Bookworm gets Debian LTS security updates until mid-2028.
+
+   `setup.sh` stops on Trixie unless you run it with `ALLOW_TRIXIE=1`. Try
+   Trixie again once that Comitup issue is fixed.
 2. Edit the settings (OS customisation):
    - Hostname: `foosball-1` (unique per table)
    - Username and password: e.g. `pi`
@@ -42,13 +54,30 @@ In [Raspberry Pi Imager](https://www.raspberrypi.com/software/):
 3. Write the card, put it in the Pi, power it on and give it a few minutes.
    Then `ssh pi@foosball-1.local`.
 
-Update the OS and install the build tools (the GPIO packages compile during
-`npm install`):
+## Quick setup: run `setup.sh`
+
+On the Pi, clone the repo and run the setup script:
 
 ```sh
-sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y git build-essential python3
+git clone https://github.com/ventinus/Foosball.git
+Foosball/packages/game-tracker/setup.sh
 ```
+
+If `git` isn't installed, this one command clones the repo too:
+
+```sh
+bash <(curl -fsSL https://raw.githubusercontent.com/ventinus/Foosball/mainline/packages/game-tracker/setup.sh)
+```
+
+The script first asks you to paste in the Amplify config (`aws-exports.js`,
+see step 5). After that it runs without input: it updates the OS, installs
+Node 22 (step 4), the tracker (step 5), autostart on the console (step 7) and
+Comitup (step 3), then reboots into the tracker. It takes a long time on a
+Zero W. It's safe to run again, for example after a failed step.
+
+Afterwards, check the hardware (step 6) and correct the scoreboard in
+`packages/game-tracker/tracker.env` if needed. Steps 3 to 5 and 7 describe
+what the script does, for doing it by hand.
 
 ## 3. Comitup (Wi-Fi setup from a phone)
 
@@ -60,13 +89,13 @@ and pick the Wi-Fi network on a web page.
 sudo apt install -y comitup
 ```
 
-Name the hotspot after the table in `/etc/comitup.conf`:
+Name the hotspot after the table in `/etc/comitup.conf` (`setup.sh` uses the hostname):
 
 ```
 ap_name: foosball-1
 ```
 
-Then `sudo reboot`. Check the [Comitup docs](https://davesteele.github.io/comitup/)
+Use the table's hostname. Then `sudo reboot`. Check the [Comitup docs](https://davesteele.github.io/comitup/)
 for anything specific to your OS release; it needs NetworkManager, which
 current Raspberry Pi OS uses.
 
@@ -142,6 +171,10 @@ From `~/Foosball/packages/game-tracker`:
      scoreboard.
    - Stop with Ctrl-C.
 
+Once it's set up, the tracker reads the scoreboard values from
+`tracker.env` (created by `setup.sh`, not in git). Edit it and reboot to
+apply them.
+
 If GPIO setup fails with `EINVAL`, check `cat /sys/class/gpio/gpiochip*/label`
 and `.../base`. `src/utils/gpio.js` finds the base of the `pinctrl-bcm2835`
 controller automatically, and `GPIO_BASE=<n>` overrides it.
@@ -155,21 +188,20 @@ rather than as a background service. Log in to the console automatically:
 sudo raspi-config nonint do_boot_behaviour B2   # console autologin
 ```
 
-Then add this to the end of `~/.bash_profile` (create it if needed), using
-your scoreboard values from step 6:
+Then add this to the end of `~/.bash_profile` (create it if needed).
+`start.sh` loads the settings in `tracker.env` and restarts the tracker
+whenever it exits; until `src/aws-exports.js` exists it waits and says how to
+copy it over.
 
 ```sh
-# Run the foosball tracker on the console, restarting it if it exits.
+# Run the foosball tracker on the console.
 if [ "$(tty)" = "/dev/tty1" ]; then
-  export SCOREBOARD_ORIENTATION=90
-  cd ~/Foosball/packages/game-tracker
-  while true; do
-    node src
-    echo "Tracker stopped; restarting in 5 seconds (Ctrl-C to stay in the shell)"
-    sleep 5
-  done
+  ~/Foosball/packages/game-tracker/start.sh
 fi
 ```
+
+Put your scoreboard values from step 6 in
+`~/Foosball/packages/game-tracker/tracker.env`, e.g. `SCOREBOARD_ORIENTATION=90`.
 
 `sudo reboot` and the tracker should start by itself. SSH logins aren't on
 tty1, so they get a normal shell.
@@ -179,8 +211,7 @@ tty1, so they get a normal shell.
 ```sh
 ssh pi@foosball-1.local
 cd ~/Foosball && git pull
-cd packages/game-tracker && npm ci --omit=dev
-sudo reboot
+packages/game-tracker/setup.sh   # or: cd packages/game-tracker && npm ci --omit=dev && sudo reboot
 ```
 
 ## 9. The clock

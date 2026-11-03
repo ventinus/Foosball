@@ -25,3 +25,6 @@ amplifytools.xcconfig
 .secret-*
 **.sample
 #amplify-do-not-edit-end
+
+# per-table settings written by setup.sh
+/tracker.env
