@@ -38,7 +38,9 @@ sync.refreshPlayers();
 const scoreboardChild = childProcess(
   "scoreboard.js",
   (message) => console.log("scoreboard", message),
-  (err) => console.log("onScoreboardError", err)
+  (err) => console.log("onScoreboardError", err),
+  // a restarted scoreboard starts blank; show it the current view
+  { onRestart: () => resendScoreboard() }
 );
 
 // Sends the scoreboard what to show, only when it changes.
@@ -49,6 +51,11 @@ const updateScoreboard = (snapshot) => {
   if (key === lastScoreboardView || !scoreboardChild.connected) return;
   lastScoreboardView = key;
   scoreboardChild.send({ view });
+};
+
+const resendScoreboard = () => {
+  lastScoreboardView = undefined;
+  updateScoreboard(gameService.getSnapshot());
 };
 
 const gameService = createActor(gameMachine);
@@ -140,13 +147,21 @@ process.stdin.setRawMode(true);
 // alias typing during registration must not drop fast keystrokes.
 const debouncedAppKeypress = debounce(onAppKeypress, 300, debounceOptions);
 
+// Stops the sensor processes so they release their GPIO pins; the scoreboard
+// blanks the board on SIGTERM. The children also exit if this process dies
+// without getting here, when their IPC channel closes.
+const shutdown = () => {
+  [badgeScanChild, scorePointChild, vibrationChild, scoreboardChild].forEach(
+    (child) => child.stop("SIGTERM")
+  );
+  process.exit();
+};
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
+
 const handleKeypress = (str, key) => {
   if (key.ctrl && key.name === "c") {
-    badgeScanChild.kill("SIGKILL");
-    scorePointChild.kill("SIGKILL");
-    vibrationChild.kill("SIGKILL");
-    scoreboardChild.kill("SIGTERM"); // lets it blank the board
-    process.exit();
+    shutdown();
   } else if (currentState === "registration") {
     onInputKeypress(key.name);
   } else {

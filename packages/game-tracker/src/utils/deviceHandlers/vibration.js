@@ -14,3 +14,6 @@ const emit = (err, value) => {
 }
 
 sensor.watch(emit)
+
+// Exit when the tracker goes away, so this process doesn't keep the pins.
+process.on('disconnect', () => process.exit(0))

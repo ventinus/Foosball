@@ -78,3 +78,6 @@ setInterval(function() {
   //# Stop
   mfrc522.stopCrypto()
 }, 500)
+
+// Exit when the tracker goes away, so this process doesn't keep the pins.
+process.on('disconnect', () => process.exit(0))

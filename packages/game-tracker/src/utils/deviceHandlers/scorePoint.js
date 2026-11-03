@@ -20,3 +20,6 @@ const handleChange = (index) => (err, value) => {
 }
 
 sensors.forEach((sensor, i) => sensor.watch(handleChange(i)))
+
+// Exit when the tracker goes away, so this process doesn't keep the pins.
+process.on('disconnect', () => process.exit(0))
