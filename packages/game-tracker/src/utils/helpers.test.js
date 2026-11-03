@@ -4,6 +4,7 @@ const {
   toCompetitionId,
   showCompetition,
   minToMs,
+  registrationKeyEvent,
 } = require("./helpers");
 
 const toPlayers = (ids) => ids.map((id) => ({ id }));
@@ -113,6 +114,31 @@ describe("helpers", () => {
       expect(minToMs(5)).toBe(300000);
       expect(minToMs(10)).toBe(600000);
       expect(minToMs(60)).toBe(3600000);
+    });
+  });
+
+  describe("registrationKeyEvent", () => {
+    it("should append letters and digits", () => {
+      expect(registrationKeyEvent("a")).toEqual({
+        type: "APPEND_CHAR",
+        character: "a",
+      });
+      expect(registrationKeyEvent("7")).toEqual({
+        type: "APPEND_CHAR",
+        character: "7",
+      });
+    });
+
+    it("should map return, backspace and escape", () => {
+      expect(registrationKeyEvent("return")).toEqual({ type: "CONFIRM" });
+      expect(registrationKeyEvent("backspace")).toEqual({ type: "BACKSPACE" });
+      expect(registrationKeyEvent("escape")).toEqual({ type: "DENY" });
+    });
+
+    it("should ignore punctuation (no key name) and other keys", () => {
+      expect(registrationKeyEvent(undefined)).toBeNull();
+      expect(registrationKeyEvent("tab")).toBeNull();
+      expect(registrationKeyEvent("up")).toBeNull();
     });
   });
 });

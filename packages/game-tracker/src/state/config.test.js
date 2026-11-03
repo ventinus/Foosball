@@ -18,7 +18,11 @@ const {
   PAUSE,
 } = require("./actionTypes");
 
-const { gameMachine, initialContext } = require("./config");
+const {
+  gameMachine,
+  initialContext,
+  REGISTRATION_TIMEOUT_MS,
+} = require("./config");
 
 jest.mock("../utils/helpers", () => ({
   ...jest.requireActual("../utils/helpers"),
@@ -116,7 +120,7 @@ describe("gameMachine", () => {
         "Please wait while I look you up..."
       );
       expect(helpers.prompt.mock.calls[1][0]).toEqual([
-        "Enter a name (<10):",
+        "Enter a name (max 10, Esc to cancel):",
         "",
         "",
       ]);
@@ -221,7 +225,7 @@ describe("gameMachine", () => {
       send(APPEND_CHAR, { character: "a" });
       send(APPEND_CHAR, { character: "b" });
       send(APPEND_CHAR, { character: "e" });
-      expect(helpers.prompt.mock.calls[0][0][0]).toBe("Enter a name (<10):");
+      expect(helpers.prompt.mock.calls[0][0][0]).toBe("Enter a name (max 10, Esc to cancel):");
       expect(state().context.newPlayer.alias).toBe("abe");
 
       send(BACKSPACE);
@@ -240,6 +244,60 @@ describe("gameMachine", () => {
       expect(state().context.newPlayer).toEqual({ id: "0", alias: "" });
       expect(state().context.players).toEqual([{ id: "888", alias: "ab" }]);
       expect(state().value).toBe("inactive");
+    });
+
+    it("should not confirm an empty alias", () => {
+      startAt("registration", { newPlayer: { id: "888", alias: "" } });
+
+      send(CONFIRM);
+      expect(state().value).toBe("registration");
+      expect(queued("createPlayer")).toEqual([]);
+    });
+
+    it("should cancel back to inactive without creating a player", () => {
+      startAt("registration", {
+        players: [{ id: "1", alias: "one" }],
+        newPlayer: { id: "888", alias: "ab" },
+      });
+
+      send(DENY);
+      expect(state().value).toBe("inactive");
+      expect(state().context.newPlayer).toEqual({ id: "0", alias: "" });
+      expect(state().context.players).toEqual([{ id: "1", alias: "one" }]);
+      expect(queued("createPlayer")).toEqual([]);
+    });
+
+    it("should return to inactive when nobody types", async () => {
+      const machine = gameMachine.provide({
+        delays: { registrationTimeout: 50 },
+      });
+      actor = createActor(machine).start();
+      send(BADGE_SCAN, { id: 123 });
+      await reach("registration");
+
+      await reach("inactive");
+      expect(state().context.newPlayer).toEqual({ id: "0", alias: "" });
+      expect(state().context.players).toEqual([]);
+      expect(queued("createPlayer")).toEqual([]);
+    });
+
+    describe("timeout", () => {
+      beforeEach(() => jest.useFakeTimers());
+      afterEach(() => jest.useRealTimers());
+
+      it("should restart the timeout on each keystroke", () => {
+        startAt("registration", { newPlayer: { id: "888", alias: "" } });
+        send(APPEND_CHAR, { character: "a" });
+
+        jest.advanceTimersByTime(REGISTRATION_TIMEOUT_MS - 1000);
+        send(APPEND_CHAR, { character: "b" });
+        jest.advanceTimersByTime(REGISTRATION_TIMEOUT_MS - 1000);
+        expect(state().value).toBe("registration");
+        expect(state().context.newPlayer.alias).toBe("ab");
+
+        jest.advanceTimersByTime(1000);
+        expect(state().value).toBe("inactive");
+      });
     });
   });
 

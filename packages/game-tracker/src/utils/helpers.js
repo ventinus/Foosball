@@ -1,4 +1,10 @@
 const soundBuzzer = require("./deviceHandlers/beep");
+const {
+  APPEND_CHAR,
+  BACKSPACE,
+  CONFIRM,
+  DENY,
+} = require("../state/actionTypes");
 
 // How many players (in scan order) make up team 1, by total player count.
 // With 3 players the first two scanned are a team and the third plays alone,
@@ -35,3 +41,23 @@ exports.showCompetition = (players) => {
 exports.minToMs = (min) => 1000 * 60 * min;
 
 exports.beep = (forever) => soundBuzzer(undefined, forever);
+
+// Maps a key pressed while typing an alias to a machine event, or null to
+// ignore it. readline leaves the key name undefined for punctuation such as
+// "-" and ".".
+exports.registrationKeyEvent = (keyName) => {
+  if (!keyName) return null;
+  if (keyName.length === 1 && /[a-z0-9]/.test(keyName)) {
+    return { type: APPEND_CHAR, character: keyName };
+  }
+  switch (keyName) {
+    case "return":
+      return { type: CONFIRM };
+    case "backspace":
+      return { type: BACKSPACE };
+    case "escape":
+      return { type: DENY };
+    default:
+      return null;
+  }
+};

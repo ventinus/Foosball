@@ -14,15 +14,13 @@ const {
   INITIATE_GAME,
   BADGE_SCAN,
   SCORE_POINT,
-  APPEND_CHAR,
-  BACKSPACE,
   CONFIRM,
   PAUSE,
   GAME_ACTIVITY,
   WARN_PAUSE,
   DENY,
 } = require("./state/actionTypes");
-const { childProcess, minToMs } = require("./utils");
+const { childProcess, minToMs, registrationKeyEvent } = require("./utils");
 const { scoreboardView } = require("./utils/scoreboard/view");
 const sync = require("./sync");
 
@@ -86,13 +84,8 @@ const onAppKeypress = (keyName) => {
 };
 
 const onInputKeypress = (keyName) => {
-  if (keyName.length === 1 && /[a-z0-9]/.test(keyName)) {
-    gameService.send({ type: APPEND_CHAR, character: keyName });
-  } else if (keyName === "return") {
-    gameService.send({ type: CONFIRM });
-  } else if (keyName === "backspace") {
-    gameService.send({ type: BACKSPACE });
-  }
+  const event = registrationKeyEvent(keyName);
+  if (event) gameService.send(event);
 };
 
 const INACTIVITY_WARN_MS = minToMs(2); // no vibration for this long → warn

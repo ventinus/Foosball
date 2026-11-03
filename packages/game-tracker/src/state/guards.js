@@ -9,6 +9,9 @@ exports.canActivate = ({ context: { players } }) =>
 exports.notPresent = ({ context: { players }, event: { id } }) =>
   !players.some((player) => String(player.id) === String(id));
 
+// Registration can't be confirmed with an empty alias.
+exports.hasAlias = ({ context: { newPlayer } }) => newPlayer.alias.length > 0;
+
 // TODO: make a more robust check such as win by 2
 exports.gameComplete = ({ context: { currentGame } }) =>
   Math.max(...currentGame.teamPoints) >= 5;

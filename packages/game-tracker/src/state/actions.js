@@ -49,6 +49,9 @@ exports.seedNewPlayer = assign({
   }),
 });
 
+// registration was cancelled or timed out
+exports.clearNewPlayer = assign({ newPlayer: emptyNewPlayer });
+
 exports.addNewPlayer = assign({
   players: ({ context }) => addPlayer(context.players, context.newPlayer),
   newPlayer: emptyNewPlayer,
@@ -83,7 +86,7 @@ exports.updateCompetition = ({ context: { players } }) =>
 exports.promptSearching = () => prompt("Please wait while I look you up...");
 
 exports.promptAliasInput = ({ context: { newPlayer } }) =>
-  prompt(["Enter a name (<10):", "", newPlayer.alias]);
+  prompt(["Enter a name (max 10, Esc to cancel):", "", newPlayer.alias]);
 
 exports.createPlayer = ({ context: { newPlayer } }) => {
   Player.create(newPlayer).catch(logFailure("createPlayer"));

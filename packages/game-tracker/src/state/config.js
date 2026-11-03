@@ -16,6 +16,11 @@ const {
 const actions = require("./actions");
 const actors = require("./services");
 const guards = require("./guards");
+const { minToMs } = require("../utils/helpers");
+
+// An unknown badge with nobody typing returns the table to `inactive`.
+const REGISTRATION_TIMEOUT_MS = minToMs(2);
+exports.REGISTRATION_TIMEOUT_MS = REGISTRATION_TIMEOUT_MS;
 
 exports.initialContext = {
   players: [],
@@ -32,7 +37,12 @@ exports.initialContext = {
   },
 };
 
-exports.gameMachine = setup({ actions, actors, guards }).createMachine({
+exports.gameMachine = setup({
+  actions,
+  actors,
+  guards,
+  delays: { registrationTimeout: REGISTRATION_TIMEOUT_MS },
+}).createMachine({
   id: "foosball",
   initial: "inactive",
   // `input` lets callers (and tests) seed part of the context
@@ -69,16 +79,32 @@ exports.gameMachine = setup({ actions, actors, guards }).createMachine({
     },
     registration: {
       entry: "promptAliasInput",
+      // Re-entering on each keystroke re-prompts and restarts the timeout.
+      after: {
+        registrationTimeout: {
+          target: "inactive",
+          actions: "clearNewPlayer",
+        },
+      },
       on: {
         [APPEND_CHAR]: {
-          actions: ["appendCharacter", "promptAliasInput"],
+          target: "registration",
+          reenter: true,
+          actions: "appendCharacter",
         },
         [BACKSPACE]: {
-          actions: ["backspace", "promptAliasInput"],
+          target: "registration",
+          reenter: true,
+          actions: "backspace",
         },
         [CONFIRM]: {
+          guard: "hasAlias",
           actions: ["createPlayer", "addNewPlayer"],
           target: "inactive",
+        },
+        [DENY]: {
+          target: "inactive",
+          actions: "clearNewPlayer",
         },
       },
     },
