@@ -5,6 +5,7 @@ const {
   showCompetition,
   minToMs,
   registrationKeyEvent,
+  breakBeamEvent,
 } = require("./helpers");
 
 const toPlayers = (ids) => ids.map((id) => ({ id }));
@@ -139,6 +140,26 @@ describe("helpers", () => {
       expect(registrationKeyEvent(undefined)).toBeNull();
       expect(registrationKeyEvent("tab")).toBeNull();
       expect(registrationKeyEvent("up")).toBeNull();
+    });
+  });
+
+  describe("breakBeamEvent", () => {
+    it("should score a point for the side A/B goal sensors", () => {
+      expect(breakBeamEvent(0)).toEqual({ type: "SCORE_POINT", index: 0 });
+      expect(breakBeamEvent(1)).toEqual({ type: "SCORE_POINT", index: 1 });
+    });
+
+    it("should start a game for higher sensors", () => {
+      expect(breakBeamEvent(2)).toEqual({ type: "INITIATE_GAME" });
+    });
+
+    it("should ignore errors and anything that isn't a sensor index", () => {
+      expect(breakBeamEvent({ error: "Error: EIO" })).toBeNull();
+      expect(breakBeamEvent("POINT ERROR: Error: EIO")).toBeNull();
+      expect(breakBeamEvent(undefined)).toBeNull();
+      expect(breakBeamEvent(-1)).toBeNull();
+      expect(breakBeamEvent(1.5)).toBeNull();
+      expect(breakBeamEvent("1")).toBeNull();
     });
   });
 });

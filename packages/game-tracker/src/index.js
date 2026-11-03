@@ -11,16 +11,19 @@ const awsconfig = awsExports.default ?? awsExports;
 
 const { gameMachine } = require("./state/config");
 const {
-  INITIATE_GAME,
   BADGE_SCAN,
-  SCORE_POINT,
   CONFIRM,
   PAUSE,
   GAME_ACTIVITY,
   WARN_PAUSE,
   DENY,
 } = require("./state/actionTypes");
-const { childProcess, minToMs, registrationKeyEvent } = require("./utils");
+const {
+  childProcess,
+  minToMs,
+  registrationKeyEvent,
+  breakBeamEvent,
+} = require("./utils");
 const { scoreboardView } = require("./utils/scoreboard/view");
 const sync = require("./sync");
 
@@ -65,11 +68,11 @@ const onBadgeScan = ({ message, id }) => {
   }
 };
 
-const onBreakBeam = (index) => {
-  console.log("break beam", index);
-  return index <= 1
-    ? gameService.send({ type: SCORE_POINT, index })
-    : gameService.send({ type: INITIATE_GAME });
+const onBreakBeam = (message) => {
+  console.log("break beam", message);
+  const event = breakBeamEvent(message);
+  if (event) gameService.send(event);
+  else if (message?.error) console.log("onBreakBeamError", message.error);
 };
 const onAppKeypress = (keyName) => {
   switch (keyName) {

@@ -7,7 +7,8 @@ const trackingValues = [0, 0]
 
 const handleChange = (index) => (err, value) => {
   if (err) {
-    process.send(`POINT ERROR: ${err}`)
+    // a separate shape, so the parent can't mistake an error for a sensor index
+    process.send({ error: String(err) })
     return
   }
 

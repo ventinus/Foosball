@@ -4,6 +4,8 @@ const {
   BACKSPACE,
   CONFIRM,
   DENY,
+  INITIATE_GAME,
+  SCORE_POINT,
 } = require("../state/actionTypes");
 
 // How many players (in scan order) make up team 1, by total player count.
@@ -60,4 +62,15 @@ exports.registrationKeyEvent = (keyName) => {
     default:
       return null;
   }
+};
+
+// Maps a message from the break-beam process (scorePoint.js) to a machine
+// event, or null to ignore it. Sensors 0/1 are the side A/B goals and higher
+// ones start a game; anything that isn't a sensor index (such as an
+// `{ error }` report) is ignored.
+exports.breakBeamEvent = (message) => {
+  if (!Number.isInteger(message) || message < 0) return null;
+  return message <= 1
+    ? { type: SCORE_POINT, index: message }
+    : { type: INITIATE_GAME };
 };
