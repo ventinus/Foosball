@@ -86,8 +86,18 @@ setup hotspot whenever it can't join a known network. You join it from a phone
 and pick the Wi-Fi network on a web page.
 
 ```sh
-sudo apt install -y comitup
+curl -fsSLO https://davesteele.github.io/comitup/deb/davesteele-comitup-apt-source_1.3_all.deb
+sudo dpkg -i davesteele-comitup-apt-source_1.3_all.deb
+sudo apt update
+sudo apt install -y comitup python3-networkmanager
 ```
+
+Install it from the maintainer's repository as shown, not Debian's
+`apt install comitup` alone. Bookworm's own comitup (1.38) crash-loops with
+`KeyError: dbus.UInt32(32)`: its `python3-networkmanager` 2.2-2 doesn't know
+the loopback device that NetworkManager 1.42 lists. The repository's 2.2-3
+fixes that. The first package only adds the apt source and the maintainer's
+signing key.
 
 Name the hotspot after the table in `/etc/comitup.conf` (`setup.sh` uses the hostname):
 

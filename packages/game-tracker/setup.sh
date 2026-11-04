@@ -167,7 +167,28 @@ EOF
 # --- Comitup (last: it can take over the Wi-Fi) --------------------------------------------
 
 step "Installing Comitup (Wi-Fi setup hotspot)"
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y comitup
+# Install from the Comitup maintainer's repository, not Debian's. Bookworm's
+# comitup 1.38 crash-loops: its python3-networkmanager 2.2-2 doesn't know
+# NetworkManager 1.42's loopback device (type 32) and raises
+# KeyError: dbus.UInt32(32). The repository's 2.2-3 handles it.
+# This package only adds the apt source and the maintainer's signing key
+# (which is also on the Debian keyring). It's pinned by checksum.
+COMITUP_SOURCE_DEB=davesteele-comitup-apt-source_1.3_all.deb
+COMITUP_SOURCE_SHA256=6620d256af8d21b05782d77039150351785d596b0f3faee7154245d76dd19114
+if ! dpkg -s davesteele-comitup-apt-source >/dev/null 2>&1; then
+  TMP=$(mktemp -d)
+  curl -fsSLo "$TMP/$COMITUP_SOURCE_DEB" "https://davesteele.github.io/comitup/deb/$COMITUP_SOURCE_DEB"
+  echo "$COMITUP_SOURCE_SHA256  $TMP/$COMITUP_SOURCE_DEB" | sha256sum -c -
+  sudo dpkg -i "$TMP/$COMITUP_SOURCE_DEB"
+  rm -rf "$TMP"
+  sudo apt-get update
+fi
+# Upgrades a comitup/python3-networkmanager that's already installed from Debian.
+# --force-confold keeps our edited /etc/comitup.conf instead of stopping at a prompt.
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold \
+  comitup python3-networkmanager
+# Turns it back on if it was disabled while broken.
+sudo systemctl enable comitup
 AP_NAME=$(hostname)
 if grep -qE '^\s*ap_name:' /etc/comitup.conf 2>/dev/null; then
   sudo sed -i -E "s/^\s*ap_name:.*/ap_name: $AP_NAME/" /etc/comitup.conf
