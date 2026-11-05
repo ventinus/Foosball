@@ -218,6 +218,55 @@ describe("sync", () => {
     });
   });
 
+  describe("status", () => {
+    it("should start unknown with nothing waiting", () => {
+      expect(make().status()).toEqual({ online: null, pending: 0, failed: 0 });
+    });
+
+    it("should count writes waiting to be sent", () => {
+      const sync = make();
+      sync.registerPlayer({ id: "1", alias: "a" });
+      expect(sync.status()).toMatchObject({ pending: 1 });
+    });
+
+    it("should report going offline and back online", async () => {
+      const sync = make();
+      const seen = [];
+      sync.onStatus((status) => seen.push(status));
+
+      goOffline(api);
+      await sync.findPlayer("1");
+      expect(sync.status().online).toBe(false);
+
+      api.findPlayer.mockResolvedValue(null);
+      await sync.findPlayer("1");
+      expect(sync.status().online).toBe(true);
+      expect(seen.map((status) => status.online)).toEqual([false, true]);
+    });
+
+    it("should report sends and failures", async () => {
+      const sync = make({ maxRejections: 1 });
+      sync.registerPlayer({ id: "1", alias: "a" });
+      api.createPlayer.mockRejectedValue(rejected());
+      await sync.flush();
+      expect(sync.status()).toEqual({ online: true, pending: 0, failed: 1 });
+
+      sync.registerPlayer({ id: "2", alias: "b" });
+      api.createPlayer.mockResolvedValue({});
+      await sync.flush();
+      expect(sync.status()).toEqual({ online: true, pending: 0, failed: 1 });
+    });
+
+    it("should stop telling a listener once unsubscribed", () => {
+      const sync = make();
+      const listener = jest.fn();
+      const unsubscribe = sync.onStatus(listener);
+      unsubscribe();
+      sync.registerPlayer({ id: "1", alias: "a" });
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
+
   describe("findUnfinishedGame", () => {
     it("finds a game started here while offline", async () => {
       goOffline(api);

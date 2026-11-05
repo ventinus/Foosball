@@ -20,6 +20,7 @@ module.exports = (
     forkProcess = fork,
     log = console.log,
     onRestart = () => {},
+    onExit = () => {},
     restartDelays = RESTART_DELAYS_MS,
   } = {}
 ) => {
@@ -49,6 +50,7 @@ module.exports = (
       if (Date.now() - startedAt >= STABLE_MS) restarts = 0
       const delay = restartDelays[Math.min(restarts, restartDelays.length - 1)]
       restarts += 1
+      onExit()
       log(
         `${filename} exited (code ${code}, signal ${signal}), restarting in ${delay}ms`
       )
@@ -64,6 +66,10 @@ module.exports = (
   return {
     get connected() {
       return !stopped && Boolean(child?.connected)
+    },
+    // Restarts since it last ran steadily (STABLE_MS).
+    get restarts() {
+      return restarts
     },
     send: (message) => {
       if (child?.connected) child.send(message)

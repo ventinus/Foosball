@@ -45,7 +45,37 @@ exports.createSync = ({
 } = {}) => {
   const store = createStore(dataDir, { log });
   const state = store.load();
-  const persist = () => store.save(state);
+
+  // Whether the API answered the latest request: null until something is
+  // sent or looked up.
+  let reachable = null;
+  const listeners = new Set();
+  let lastStatus = null;
+
+  const status = () => ({
+    online: reachable,
+    pending: state.outbox.length,
+    failed: state.failed.length,
+  });
+
+  // Tells listeners when the status changes.
+  const notify = () => {
+    const next = status();
+    const key = JSON.stringify(next);
+    if (key === lastStatus) return;
+    lastStatus = key;
+    listeners.forEach((listener) => listener(next));
+  };
+
+  const setReachable = (value) => {
+    reachable = value;
+    notify();
+  };
+
+  const persist = () => {
+    store.save(state);
+    notify();
+  };
 
   let flushing = false;
   let inFlight = null;
@@ -89,8 +119,11 @@ exports.createSync = ({
           if (!isConditionFailure(err)) {
             if (!isRejected(err)) {
               log(`sync: ${op.type} not sent, retrying in ${delay}ms`, err);
+              setReachable(false);
               return scheduleRetry();
             }
+            // AppSync answered, so the table is online even though it said no.
+            reachable = true;
             op.rejections = (op.rejections ?? 0) + 1;
             if (op.rejections < maxRejections) {
               log(`sync: ${op.type} rejected (${op.rejections})`, err);
@@ -104,6 +137,7 @@ exports.createSync = ({
         } finally {
           inFlight = null;
         }
+        reachable = true;
         state.outbox.shift();
         pruneGame(op.gameId);
         persist();
@@ -116,6 +150,7 @@ exports.createSync = ({
 
   // Something just reached the API, so skip any backoff wait.
   const online = () => {
+    setReachable(true);
     if (autoFlush && state.outbox.length && timer) flush();
   };
 
@@ -153,6 +188,7 @@ exports.createSync = ({
       }
     } catch (err) {
       log("sync: findPlayer offline, using local players", err?.message ?? err);
+      setReachable(false);
     }
     // Also covers players registered here whose createPlayer hasn't been sent.
     const alias = state.players[id];
@@ -174,6 +210,7 @@ exports.createSync = ({
       online();
     } catch (err) {
       log("sync: couldn't refresh players", err?.message ?? err);
+      setReachable(false);
     }
   };
 
@@ -222,6 +259,7 @@ exports.createSync = ({
       online();
     } catch (err) {
       log("sync: getCurrentGame offline, using local games", err?.message ?? err);
+      setReachable(false);
     }
     const candidates = Object.values(state.games).filter(
       (game) => game.competitionId === competitionId && !game.endedAt
@@ -249,5 +287,11 @@ exports.createSync = ({
     stop,
     pending: () => structuredClone(state.outbox),
     failed: () => structuredClone(state.failed),
+    status,
+    // Calls `listener(status)` whenever the status changes; returns an unsubscribe.
+    onStatus: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
   };
 };

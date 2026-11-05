@@ -105,6 +105,19 @@ describe('childProcess', () => {
     expect(forkProcess).toHaveBeenCalledTimes(5)
   })
 
+  it('reports each exit and counts restarts', () => {
+    const onExit = jest.fn()
+    const handle = supervise({ onExit })
+    expect(handle.restarts).toBe(0)
+
+    latest().exit(1)
+    expect(onExit).toHaveBeenCalledTimes(1)
+    expect(handle.restarts).toBe(1)
+    jest.advanceTimersByTime(100)
+    latest().exit(1)
+    expect(handle.restarts).toBe(2)
+  })
+
   it('starts the delays over after a process ran for a while', () => {
     supervise()
     latest().exit(1)
