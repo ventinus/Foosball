@@ -21,6 +21,10 @@ const Game = (t1, t2, initialProps) => {
 
   const competitionId = toCompetitionId(props.t1, props.t2);
 
+  // Sides that scored, in order, so goals can be undone. Goals from before a
+  // resume aren't known, so only goals scored since can be undone.
+  const goals = [];
+
   // Saved locally right away and sent to the API when it's reachable.
   const updateGame = async () =>
     sync.saveGame({
@@ -36,6 +40,7 @@ const Game = (t1, t2, initialProps) => {
   };
 
   const resetScore = () => {
+    goals.length = 0;
     props.sideAPoints = 0;
     props.sideBPoints = 0;
     props.startedAt = new Date().toISOString();
@@ -47,20 +52,36 @@ const Game = (t1, t2, initialProps) => {
     return updateGame();
   };
 
-  const scorePoint = (index) => props[`side${index === 0 ? "A" : "B"}Points`]++;
+  const sideKey = (index) => `side${index === 0 ? "A" : "B"}Points`;
+
+  const scorePoint = (index) => {
+    goals.push(index);
+    props[sideKey(index)]++;
+  };
+
+  // Takes back the latest goal; returns whether there was one to take back.
+  const undoPoint = () => {
+    if (!goals.length) return false;
+    props[sideKey(goals.pop())]--;
+    return true;
+  };
 
   return {
     updateGame,
     resetScore,
     endGame,
     scorePoint,
+    undoPoint,
     switchSides,
     competitionId,
     get props() {
       return props;
     },
     get completed() {
-      return props.endedAt !== null;
+      return Boolean(props.endedAt);
+    },
+    get canUndo() {
+      return goals.length > 0;
     },
     get teamPoints() {
       return [props.sideAPoints, props.sideBPoints];

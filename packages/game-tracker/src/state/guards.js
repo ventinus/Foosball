@@ -19,6 +19,8 @@ exports.hasAlias = ({ context: { newPlayer } }) => newPlayer.alias.length > 0;
 exports.noGoals = ({ context: { currentGame } }) =>
   currentGame.teamPoints.every((points) => points === 0);
 
+exports.canUndo = ({ context: { currentGame } }) => currentGame.canUndo;
+
 // TODO: make a more robust check such as win by 2
 exports.gameComplete = ({ context: { currentGame } }) =>
   Math.max(...currentGame.teamPoints) >= 5;

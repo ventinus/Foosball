@@ -17,6 +17,10 @@ const {
   GAME_ACTIVITY,
   WARN_PAUSE,
   DENY,
+  UNDO_GOAL,
+  REMATCH,
+  SWAP_SIDES,
+  ABANDON,
 } = require("./state/actionTypes");
 const {
   childProcess,
@@ -81,16 +85,20 @@ const onBreakBeam = (message) => {
   if (event) gameService.send(event);
   else if (message?.error) console.log("onBreakBeamError", message.error);
 };
+// Keys on the Pi's keyboard, outside of typing an alias.
+const APP_KEYS = {
+  y: CONFIRM,
+  return: CONFIRM,
+  n: DENY,
+  u: UNDO_GOAL,
+  r: REMATCH,
+  s: SWAP_SIDES,
+  x: ABANDON,
+};
+
 const onAppKeypress = (keyName) => {
-  switch (keyName) {
-    case "y":
-    case "return":
-      gameService.send({ type: CONFIRM });
-      break;
-    case "n":
-      gameService.send({ type: DENY });
-      break;
-  }
+  const type = APP_KEYS[keyName];
+  if (type) gameService.send({ type });
 };
 
 const onInputKeypress = (keyName) => {
@@ -110,7 +118,7 @@ const onVibration = () => {
   if (currentState === "pauseWarning") gameService.send({ type: GAME_ACTIVITY });
 
   gameWarnId = setTimeout(() => {
-    gameService.send({ type: WARN_PAUSE });
+    gameService.send({ type: WARN_PAUSE, endsAt: Date.now() + PAUSE_GRACE_MS });
     gamePauseId = setTimeout(
       () => gameService.send({ type: PAUSE }),
       PAUSE_GRACE_MS

@@ -114,4 +114,38 @@ describe("Game", () => {
       expect.objectContaining({ id: "game-id", switched: true })
     );
   });
+
+  it("should undo the latest goal", () => {
+    game = init();
+    expect(game.canUndo).toBe(false);
+    game.scorePoint(0);
+    game.scorePoint(1);
+    game.scorePoint(1);
+
+    expect(game.undoPoint()).toBe(true);
+    expect(game.teamPoints).toEqual([1, 1]);
+    expect(game.undoPoint()).toBe(true);
+    expect(game.undoPoint()).toBe(true);
+    expect(game.teamPoints).toEqual([0, 0]);
+    expect(game.canUndo).toBe(false);
+    expect(game.undoPoint()).toBe(false);
+    expect(game.teamPoints).toEqual([0, 0]);
+  });
+
+  it("should not undo goals scored before a resume or reset", () => {
+    game = init({ sideAPoints: 3, sideBPoints: 2 });
+    expect(game.undoPoint()).toBe(false);
+    expect(game.teamPoints).toEqual([3, 2]);
+
+    game.scorePoint(0);
+    game.resetScore();
+    expect(game.canUndo).toBe(false);
+  });
+
+  it("should only be completed once ended", () => {
+    game = init();
+    expect(game.completed).toBe(false);
+    game.endGame();
+    expect(game.completed).toBe(true);
+  });
 });

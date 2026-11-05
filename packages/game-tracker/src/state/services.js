@@ -34,6 +34,13 @@ exports.completeGame = fromPromise(({ input: { currentGame } }) =>
   currentGame.endGame()
 );
 
+// Saves the finished game (if the undo window hadn't yet) and starts a new
+// one for the same lineup.
+exports.startRematch = fromPromise(async ({ input: { currentGame, sides } }) => {
+  if (!currentGame.completed) await currentGame.endGame();
+  return createGame({ sides });
+});
+
 // Rejects with { id } when the badge isn't registered yet.
 exports.findPlayer = fromPromise(async ({ input: { id } }) => {
   const player = await Player.find(id);

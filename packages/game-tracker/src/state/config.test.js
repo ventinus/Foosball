@@ -19,6 +19,10 @@ const {
   MOVE_PLAYER,
   REMOVE_PLAYER,
   SWAP_SIDES,
+  UNDO_GOAL,
+  ABANDON,
+  SET_ALIAS,
+  REMATCH,
 } = require("./actionTypes");
 const lineup = require("./lineup");
 
@@ -26,6 +30,8 @@ const {
   gameMachine,
   initialContext,
   REGISTRATION_TIMEOUT_MS,
+  UNDO_WINDOW_MS,
+  REMATCH_WINDOW_MS,
 } = require("./config");
 
 jest.mock("../utils/helpers", () => ({
@@ -81,6 +87,14 @@ const send = (type, payload = {}) => actor.send({ type, ...payload });
 const state = () => actor.getSnapshot();
 const reach = (value) => waitFor(actor, (s) => s.matches(value));
 
+// The API is unreachable: lookups fall back to local data.
+const offline = () => {
+  jest.spyOn(console, "log").mockImplementation(() => null);
+  const down = () => Promise.reject(new Error("network down"));
+  jest.spyOn(api, "findPlayer").mockImplementation(down);
+  jest.spyOn(api, "getCurrentGame").mockImplementation(down);
+};
+
 describe("gameMachine", () => {
   beforeEach(() => {
     jest.restoreAllMocks();
@@ -105,6 +119,7 @@ describe("gameMachine", () => {
       ],
       currentGame: null,
       bestOfLimit: 1,
+      deadline: null,
       newPlayer: {
         id: 0,
         alias: "",
@@ -347,6 +362,19 @@ describe("gameMachine", () => {
       expect(queued("createPlayer")).toEqual([]);
     });
 
+    it("should take the whole alias from the iPad", () => {
+      startAt("registration", { newPlayer: { id: "888", alias: "" } });
+      send(SET_ALIAS, { alias: "Jo Gray!" });
+      expect(state().context.newPlayer.alias).toBe("JoGray");
+
+      send(SET_ALIAS, { alias: "abcdefghijklmnop" });
+      expect(state().context.newPlayer.alias).toBe("abcdefghij");
+
+      send(SET_ALIAS, { alias: "" });
+      send(CONFIRM);
+      expect(state().value).toBe("registration");
+    });
+
     describe("timeout", () => {
       beforeEach(() => jest.useFakeTimers());
       afterEach(() => jest.useRealTimers());
@@ -363,6 +391,17 @@ describe("gameMachine", () => {
 
         jest.advanceTimersByTime(1000);
         expect(state().value).toBe("inactive");
+      });
+
+      it("should restart the timeout when the iPad sends the alias", () => {
+        startAt("registration", { newPlayer: { id: "888", alias: "" } });
+        jest.advanceTimersByTime(REGISTRATION_TIMEOUT_MS - 1000);
+        send(SET_ALIAS, { alias: "jo" });
+        expect(state().context.deadline).toBe(
+          Date.now() + REGISTRATION_TIMEOUT_MS
+        );
+        jest.advanceTimersByTime(REGISTRATION_TIMEOUT_MS - 1000);
+        expect(state().value).toBe("registration");
       });
     });
   });
@@ -514,53 +553,106 @@ describe("gameMachine", () => {
       ]);
     });
 
-    it("should make the game complete when the first team wins", () => {
-      const currentGame = Game("1", "2", {
-        sideAPoints: 4,
-        sideBPoints: 3,
-        id: "active-game-id",
-      });
-      startAt("active", { players: [1, 2], currentGame });
-
-      send(SCORE_POINT, { index: 0 });
-      expect(state().value).toBe("complete");
-      expect(currentGame.teamPoints).toEqual([5, 3]);
-      expect(currentGame.props.endedAt).not.toBe(null);
-      expect(queued("updateGame")).toContainEqual(
-        expect.objectContaining({ endedAt: expect.any(String) })
-      );
-    });
-
-    it("should make the game complete when the second team wins", () => {
-      const currentGame = Game("1", "2", {
-        sideAPoints: 4,
-        sideBPoints: 4,
-        id: "active-game-id",
-      });
-      startAt("active", { players: [1, 2], currentGame });
-
-      send(SCORE_POINT, { index: 1 });
-      expect(state().value).toBe("complete");
-      expect(currentGame.teamPoints).toEqual([4, 5]);
-      expect(currentGame.props.endedAt).not.toBe(null);
-      expect(queued("updateGame")).toContainEqual(
-        expect.objectContaining({ endedAt: expect.any(String) })
-      );
-    });
-
-    it("should make the game inactive and reset after game completion", async () => {
+    it("should undo the latest goal", () => {
       startAt("active", {
         players: [1, 2],
-        currentGame: Game("1", "2", { sideAPoints: 4, sideBPoints: 4 }),
+        currentGame: Game("1", "2", defaultGameProps),
       });
+      send(SCORE_POINT, { index: 0 });
       send(SCORE_POINT, { index: 1 });
-      await reach("inactive");
 
+      send(UNDO_GOAL);
+      expect(state().context.currentGame.teamPoints).toEqual([1, 0]);
+      expect(queued("updateGame")).toEqual([
+        expect.objectContaining({ sideAPoints: 1, sideBPoints: 0 }),
+      ]);
+    });
+
+    it("should ignore undo with no goals to take back", () => {
+      startAt("active", {
+        players: [1, 2],
+        currentGame: Game("1", "2", { sideAPoints: 2, sideBPoints: 1 }),
+      });
+      send(UNDO_GOAL);
+      expect(state().context.currentGame.teamPoints).toEqual([2, 1]);
+      expect(queued("updateGame")).toEqual([]);
+    });
+
+    it("should abandon the game, leaving it unfinished", () => {
+      const currentGame = Game("1", "2", defaultGameProps);
+      startAt("active", { players: [1, 2], currentGame });
+      send(SCORE_POINT, { index: 0 });
+
+      send(ABANDON);
+      expect(state().value).toBe("inactive");
+      expect(seated()).toEqual([]);
+      expect(currentGame.completed).toBe(false);
+    });
+  });
+
+  describe("complete", () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    // A game one goal from the end, with side B about to win 5-4.
+    const finish = () => {
+      const currentGame = Game("1", "2", {
+        id: "game-id",
+        sideAPoints: 4,
+        sideBPoints: 4,
+      });
+      startAt("active", { players: [1, 2], currentGame });
+      send(SCORE_POINT, { index: 1 });
+      return currentGame;
+    };
+
+    it("should show the final score without saving it yet", () => {
+      const currentGame = finish();
+
+      expect(state().matches({ complete: "confirming" })).toBe(true);
+      expect(currentGame.teamPoints).toEqual([4, 5]);
+      expect(currentGame.completed).toBe(false);
+      expect(state().context.deadline).toBe(Date.now() + UNDO_WINDOW_MS);
+    });
+
+    it("should undo the winning goal and play on", () => {
+      const currentGame = finish();
+      send(UNDO_GOAL);
+
+      expect(state().value).toBe("active");
+      expect(currentGame.teamPoints).toEqual([4, 4]);
+
+      jest.advanceTimersByTime(UNDO_WINDOW_MS);
+      expect(currentGame.completed).toBe(false);
+    });
+
+    it("should save the game as finished when the undo window ends", async () => {
+      const currentGame = finish();
+      await jest.advanceTimersByTimeAsync(UNDO_WINDOW_MS);
+
+      expect(state().matches({ complete: "saved" })).toBe(true);
+      expect(currentGame.completed).toBe(true);
+      expect(queued("updateGame")).toContainEqual(
+        expect.objectContaining({ id: "game-id", endedAt: expect.any(String) })
+      );
+
+      // too late to undo
+      send(UNDO_GOAL);
+      expect(state().matches({ complete: "saved" })).toBe(true);
+    });
+
+    it("should clear the table when the rematch window ends", async () => {
+      finish();
+      await jest.advanceTimersByTimeAsync(REMATCH_WINDOW_MS - 1);
+      expect(state().matches("complete")).toBe(true);
+
+      await jest.advanceTimersByTimeAsync(1);
+      expect(state().value).toBe("inactive");
       expect(seated()).toEqual([]);
       expect(state().context.currentGame).toBe(null);
     });
 
-    it("should return to inactive and reset when saving the completed game fails", async () => {
+    it("should still clear the table when saving the game fails", async () => {
       const log = jest.spyOn(console, "log").mockImplementation(() => null);
       const currentGame = Game("1", "2", { sideAPoints: 4, sideBPoints: 4 });
       jest
@@ -568,15 +660,75 @@ describe("gameMachine", () => {
         .mockRejectedValueOnce(new Error("disk full"));
       startAt("active", { players: [1, 2], currentGame });
       send(SCORE_POINT, { index: 1 });
-      await reach("inactive");
 
-      expect(seated()).toEqual([]);
-      expect(state().context.currentGame).toBe(null);
-      expect(log).toHaveBeenCalledWith(
-        "completeGame failed",
-        expect.any(Error)
-      );
+      await jest.advanceTimersByTimeAsync(REMATCH_WINDOW_MS);
+      expect(state().value).toBe("inactive");
+      expect(log).toHaveBeenCalledWith("completeGame failed", expect.any(Error));
       log.mockRestore();
+    });
+
+    it("should start the next lineup when a badge is scanned", async () => {
+      finish();
+      await jest.advanceTimersByTimeAsync(UNDO_WINDOW_MS);
+      send(BADGE_SCAN, { id: "12345" });
+      await jest.advanceTimersByTimeAsync(0);
+      await waitFor(actor, () => seated().length === 1);
+
+      expect(seated()).toEqual([{ id: "12345", alias: "player-exists" }]);
+      expect(state().context.currentGame).toBe(null);
+    });
+  });
+
+  describe("rematch", () => {
+    beforeEach(() => offline());
+
+    const playToFive = async () => {
+      start({ players: ["1", "2"] });
+      send(INITIATE_GAME);
+      await reach("active");
+      const first = state().context.currentGame;
+      for (let i = 0; i < 5; i++) send(SCORE_POINT, { index: 0 });
+      expect(state().matches("complete")).toBe(true);
+      return first;
+    };
+
+    it("should save the finished game and start another with the same lineup", async () => {
+      const first = await playToFive();
+      send(REMATCH);
+      await reach("active");
+
+      const second = state().context.currentGame;
+      expect(first.completed).toBe(true);
+      expect(second.props.id).not.toBe(first.props.id);
+      expect(second.competitionId).toBe("1V2");
+      expect(second.teamPoints).toEqual([0, 0]);
+      expect(lineup.teamsOf(state().context.sides)).toEqual(["1", "2"]);
+      expect(queued("createGame").map((g) => g.id)).toEqual([
+        first.props.id,
+        second.props.id,
+      ]);
+    });
+
+    it("should let the rematch be played on the other ends", async () => {
+      await playToFive();
+      send(REMATCH);
+      await reach("active");
+      send(SWAP_SIDES);
+
+      expect(state().context.currentGame.props).toMatchObject({ t1: "2", t2: "1" });
+    });
+
+    it("should not save a game twice when rematched after the undo window", async () => {
+      jest.useFakeTimers();
+      const first = await playToFive();
+      await jest.advanceTimersByTimeAsync(UNDO_WINDOW_MS);
+      expect(state().matches({ complete: "saved" })).toBe(true);
+      const endGame = jest.spyOn(first, "endGame");
+
+      send(REMATCH);
+      await reach("active");
+      expect(endGame).not.toHaveBeenCalled();
+      jest.useRealTimers();
     });
   });
 
@@ -611,6 +763,19 @@ describe("gameMachine", () => {
       expect(state().value).toBe("active");
     });
 
+    it("should hold the deadline sent with the warning", () => {
+      startAt("active", gameProps());
+      send(WARN_PAUSE, { endsAt: 1234 });
+      expect(state().context.deadline).toBe(1234);
+    });
+
+    it("should abandon the game", () => {
+      startAt("pauseWarning", gameProps());
+      send(ABANDON);
+      expect(state().value).toBe("inactive");
+      expect(state().context.currentGame).toBe(null);
+    });
+
     it("should pause and reset the game when denied", () => {
       startAt("pauseWarning", gameProps());
 
@@ -622,12 +787,6 @@ describe("gameMachine", () => {
   });
 
   describe("offline", () => {
-    const offline = () => {
-      jest.spyOn(console, "log").mockImplementation(() => null);
-      const down = () => Promise.reject(new Error("network down"));
-      jest.spyOn(api, "findPlayer").mockImplementation(down);
-      jest.spyOn(api, "getCurrentGame").mockImplementation(down);
-    };
 
     it("should recognize a player seen before while offline", async () => {
       start();
@@ -666,8 +825,11 @@ describe("gameMachine", () => {
       await reach("active");
       const { id } = state().context.currentGame.props;
 
+      jest.useFakeTimers();
       for (let i = 0; i < 5; i++) send(SCORE_POINT, { index: 1 });
-      await reach("inactive");
+      await jest.advanceTimersByTimeAsync(REMATCH_WINDOW_MS);
+      jest.useRealTimers();
+      expect(state().value).toBe("inactive");
 
       expect(queued("createGame")).toEqual([
         expect.objectContaining({ id, competitionId: "1::3V2", type: "Game" }),

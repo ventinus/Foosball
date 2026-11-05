@@ -1,9 +1,16 @@
-const { assign } = require("xstate");
+const { assign, raise } = require("xstate");
 const { Player } = require("../models");
 const { prompt, showCompetition, beep } = require("../utils/helpers");
 const lineup = require("./lineup");
 
 const emptyNewPlayer = () => ({ id: "0", alias: "" });
+
+const MAX_ALIAS_LENGTH = 10;
+exports.MAX_ALIAS_LENGTH = MAX_ALIAS_LENGTH;
+
+// Letters and digits only, as typed on the Pi's keyboard or the iPad.
+const cleanAlias = (alias) =>
+  `${alias ?? ""}`.replace(/[^a-z0-9]/gi, "").slice(0, MAX_ALIAS_LENGTH);
 
 // ------------- Context updates ------------- //
 exports.resetGame = assign({
@@ -34,7 +41,15 @@ exports.swapSides = assign({
 exports.appendCharacter = assign({
   newPlayer: ({ context: { newPlayer }, event }) => ({
     ...newPlayer,
-    alias: `${newPlayer.alias}${event.character}`.slice(0, 10),
+    alias: cleanAlias(`${newPlayer.alias}${event.character}`),
+  }),
+});
+
+// The whole alias at once, from the iPad's text field.
+exports.setAlias = assign({
+  newPlayer: ({ context: { newPlayer }, event }) => ({
+    ...newPlayer,
+    alias: cleanAlias(event.alias),
   }),
 });
 
@@ -60,6 +75,28 @@ exports.addNewPlayer = assign({
   sides: ({ context }) => lineup.seatPlayer(context.sides, context.newPlayer),
   newPlayer: emptyNewPlayer,
 });
+
+exports.undoGoal = assign({
+  currentGame: ({ context: { currentGame } }) => {
+    currentGame.undoPoint();
+    return currentGame;
+  },
+});
+
+// When the current countdown (registration, pause warning, undo or rematch
+// window) runs out, so screens can show it. Only meaningful in those states.
+exports.setDeadline = assign({
+  deadline: (_, { ms }) => Date.now() + ms,
+});
+
+// The pause timers live in index.js, which sends the deadline with the warning.
+exports.setPauseDeadline = assign({
+  deadline: ({ event }) => event.endsAt ?? null,
+});
+
+// Handles the event again from the state just entered, e.g. a badge scanned
+// while a finished game is on screen starts the next lineup.
+exports.replayEvent = raise(({ event }) => event);
 
 exports.scorePoint = assign({
   currentGame: ({ context: { currentGame }, event }) => {

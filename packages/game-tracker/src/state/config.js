@@ -14,6 +14,10 @@ const {
   MOVE_PLAYER,
   REMOVE_PLAYER,
   SWAP_SIDES,
+  UNDO_GOAL,
+  ABANDON,
+  SET_ALIAS,
+  REMATCH,
 } = require("./actionTypes");
 
 const actions = require("./actions");
@@ -26,10 +30,20 @@ const { minToMs } = require("../utils/helpers");
 const REGISTRATION_TIMEOUT_MS = minToMs(2);
 exports.REGISTRATION_TIMEOUT_MS = REGISTRATION_TIMEOUT_MS;
 
+// A finished game can have its last goal undone for this long before it's
+// saved as finished (a false trigger on the winning goal).
+const UNDO_WINDOW_MS = 10 * 1000;
+exports.UNDO_WINDOW_MS = UNDO_WINDOW_MS;
+
+// The final score stays up with a Rematch option for this long in all.
+const REMATCH_WINDOW_MS = 60 * 1000;
+exports.REMATCH_WINDOW_MS = REMATCH_WINDOW_MS;
+
 exports.initialContext = {
   sides: lineup.emptySides(), // see lineup.js
   currentGame: null,
   bestOfLimit: 1, // how many games to play to
+  deadline: null, // when the current countdown ends (ms since epoch)
   newPlayer: {
     id: 0,
     alias: "",
@@ -40,7 +54,11 @@ exports.gameMachine = setup({
   actions,
   actors,
   guards,
-  delays: { registrationTimeout: REGISTRATION_TIMEOUT_MS },
+  delays: {
+    registrationTimeout: REGISTRATION_TIMEOUT_MS,
+    undoWindow: UNDO_WINDOW_MS,
+    rematchWindow: REMATCH_WINDOW_MS - UNDO_WINDOW_MS,
+  },
 }).createMachine({
   id: "foosball",
   initial: "inactive",
@@ -81,7 +99,10 @@ exports.gameMachine = setup({
       },
     },
     registration: {
-      entry: "promptAliasInput",
+      entry: [
+        { type: "setDeadline", params: { ms: REGISTRATION_TIMEOUT_MS } },
+        "promptAliasInput",
+      ],
       // Re-entering on each keystroke re-prompts and restarts the timeout.
       after: {
         registrationTimeout: {
@@ -99,6 +120,11 @@ exports.gameMachine = setup({
           target: "registration",
           reenter: true,
           actions: "backspace",
+        },
+        [SET_ALIAS]: {
+          target: "registration",
+          reenter: true,
+          actions: "setAlias",
         },
         [CONFIRM]: {
           guard: "hasAlias",
@@ -146,16 +172,29 @@ exports.gameMachine = setup({
         [SCORE_POINT]: {
           actions: ["scorePoint", "updateGame"],
         },
+        [UNDO_GOAL]: {
+          guard: "canUndo",
+          actions: ["undoGoal", "updateGame"],
+        },
         [SWAP_SIDES]: {
           guard: "noGoals",
           actions: ["swapSides", "switchGameSides"],
         },
         [WARN_PAUSE]: "pauseWarning",
+        // Leaves the game unfinished, so it can be resumed later.
+        [ABANDON]: {
+          actions: "resetGame",
+          target: "inactive",
+        },
       },
     },
     pauseWarning: {
-      entry: "setWarning",
+      entry: ["setPauseDeadline", "setWarning"],
       on: {
+        [ABANDON]: {
+          actions: "resetGame",
+          target: "inactive",
+        },
         [CONFIRM]: "active",
         [GAME_ACTIVITY]: "active",
         [DENY]: {
@@ -168,18 +207,64 @@ exports.gameMachine = setup({
         },
       },
     },
+    // The final score stays up. For the first UNDO_WINDOW_MS the winning goal
+    // can be undone; then the game is saved as finished. Rematch (any time
+    // here) saves it straight away and starts the same lineup again. A badge
+    // scan or the end of the window clears the table.
     complete: {
-      exit: "resetGame",
+      initial: "confirming",
+      on: {
+        [REMATCH]: "rematch",
+      },
+      states: {
+        confirming: {
+          entry: { type: "setDeadline", params: { ms: UNDO_WINDOW_MS } },
+          after: { undoWindow: "saving" },
+          on: {
+            [UNDO_GOAL]: {
+              guard: "canUndo",
+              target: "#foosball.active",
+              actions: ["undoGoal", "updateGame"],
+            },
+          },
+        },
+        saving: {
+          invoke: {
+            id: "complete-game",
+            src: "completeGame",
+            input: ({ context }) => ({ currentGame: context.currentGame }),
+            onDone: "saved",
+            // Saves are queued locally (src/sync), so this only fails if that
+            // does; don't get stuck here if it happens.
+            onError: { target: "saved", actions: "logCompleteGameFailure" },
+          },
+        },
+        saved: {
+          entry: {
+            type: "setDeadline",
+            params: { ms: REMATCH_WINDOW_MS - UNDO_WINDOW_MS },
+          },
+          after: {
+            rematchWindow: { target: "#foosball.inactive", actions: "resetGame" },
+          },
+          on: {
+            [BADGE_SCAN]: {
+              target: "#foosball.inactive",
+              actions: ["resetGame", "replayEvent"],
+            },
+          },
+        },
+      },
+    },
+    rematch: {
       invoke: {
-        id: "complete-game",
-        src: "completeGame",
-        input: ({ context }) => ({ currentGame: context.currentGame }),
-        onDone: "inactive",
-        // Saves are queued locally (src/sync), so this only fails if that
-        // does; don't get stuck here if it happens.
+        id: "start-rematch",
+        src: "startRematch",
+        input: ({ context: { currentGame, sides } }) => ({ currentGame, sides }),
+        onDone: { target: "active", actions: "setGame" },
         onError: {
           target: "inactive",
-          actions: "logCompleteGameFailure",
+          actions: ["logCompleteGameFailure", "resetGame"],
         },
       },
     },

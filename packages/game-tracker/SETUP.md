@@ -181,6 +181,17 @@ From `~/Foosball/packages/game-tracker`:
      scoreboard.
    - Stop with Ctrl-C.
 
+Keyboard controls while the tracker runs (outside of typing a name):
+
+| Key | Does |
+| --- | --- |
+| `y` / Return | Yes: resume a game, keep playing after the inactivity warning |
+| `n` | No: start the score over instead of resuming, or end the game after the inactivity warning |
+| `u` | Undo the latest goal (also the winning goal, for 10 seconds after it) |
+| `r` | Rematch: after a game, start another with the same lineup |
+| `s` | Swap sides: before a game, or during one until the first goal |
+| `x` | Abandon the game (it can be resumed later) |
+
 Once it's set up, the tracker reads the scoreboard values from
 `tracker.env` (created by `setup.sh`, not in git). Edit it and reboot to
 apply them.
