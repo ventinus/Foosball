@@ -16,7 +16,11 @@ const {
   WARN_PAUSE,
   GAME_ACTIVITY,
   PAUSE,
+  MOVE_PLAYER,
+  REMOVE_PLAYER,
+  SWAP_SIDES,
 } = require("./actionTypes");
+const lineup = require("./lineup");
 
 const {
   gameMachine,
@@ -45,15 +49,30 @@ const UNKNOWN = "UNKNOWN";
 
 let actor;
 
+// Tests may seed `players` (ids or player objects) in scan order; they're
+// seated the way scans fill the table: side A, side B, side A, side B.
+const seat = ({ players, ...context }) =>
+  players
+    ? {
+        ...context,
+        sides: players
+          .map((p) => (typeof p === "object" ? p : { id: p }))
+          .reduce(lineup.seatPlayer, lineup.emptySides()),
+      }
+    : context;
+
+// The seated players, side A then side B.
+const seated = () => lineup.playersOf(state().context.sides);
+
 // Start a fresh actor in the initial state, seeding part of the context.
 const start = (context = {}) =>
-  (actor = createActor(gameMachine, { input: context }).start());
+  (actor = createActor(gameMachine, { input: seat(context) }).start());
 
 // Start an actor directly in `value` (entry actions for that state do not run).
 const startAt = (value, context = {}) => {
   const snapshot = gameMachine.resolveState({
     value,
-    context: { ...initialContext, ...context },
+    context: { ...initialContext, ...seat(context) },
   });
   return (actor = createActor(gameMachine, { snapshot }).start());
 };
@@ -80,14 +99,12 @@ describe("gameMachine", () => {
     expect(state().value).toEqual("inactive");
 
     expect(state().context).toEqual({
-      players: [],
+      sides: [
+        [null, null],
+        [null, null],
+      ],
       currentGame: null,
       bestOfLimit: 1,
-      cursorPosition: {
-        x: 0,
-        y: 0,
-      },
-      selectedPlayerIndices: [],
       newPlayer: {
         id: 0,
         alias: "",
@@ -131,10 +148,10 @@ describe("gameMachine", () => {
       send(BADGE_SCAN, { id: "12345" });
       await waitFor(
         actor,
-        (s) => s.matches("inactive") && s.context.players.length > 0
+        (s) => s.matches("inactive") && lineup.playersOf(s.context.sides).length > 0
       );
 
-      expect(state().context.players).toEqual([
+      expect(seated()).toEqual([
         { id: "12345", alias: "player-exists" },
       ]);
     });
@@ -144,10 +161,10 @@ describe("gameMachine", () => {
       send(BADGE_SCAN, { id: "12345" });
       await waitFor(
         actor,
-        (s) => s.matches("inactive") && s.context.players.length === 2
+        (s) => s.matches("inactive") && lineup.playersOf(s.context.sides).length === 2
       );
 
-      expect(state().context.players).toEqual([
+      expect(seated()).toEqual([
         { id: "1234", alias: "bar" },
         { id: "12345", alias: "player-exists" },
       ]);
@@ -159,7 +176,7 @@ describe("gameMachine", () => {
       send(BADGE_SCAN, { id: "12345" });
 
       expect(state().value).toBe("inactive");
-      expect(state().context.players).toEqual([{ id: "12345" }]);
+      expect(seated()).toEqual([{ id: "12345" }]);
       expect(state().context.currentGame).toBe(null);
     });
 
@@ -169,31 +186,80 @@ describe("gameMachine", () => {
       send(BADGE_SCAN, { id: 12345 });
 
       expect(state().value).toBe("inactive");
-      expect(state().context.players).toHaveLength(1);
+      expect(seated()).toHaveLength(1);
     });
 
-    it("should not exceed 4 players", async () => {
-      start({
-        players: [
-          { id: 1, alias: "foo1" },
-          { id: 2, alias: "foo2" },
-          { id: 3, alias: "foo3" },
-          { id: 4, alias: "foo4" },
-        ],
-      });
+    it("should reject a new badge when the table is full", () => {
+      start({ players: [1, 2, 3, 4] });
+      const before = state().context.sides;
       send(BADGE_SCAN, { id: "12345" });
-      await waitFor(
-        actor,
-        (s) => s.matches("inactive") && s.context.players[0].id !== 1
-      );
 
-      expect(state().context.players).toEqual([
-        { id: 2, alias: "foo2" },
-        { id: 3, alias: "foo3" },
-        { id: 4, alias: "foo4" },
-        { id: "12345", alias: "player-exists" },
+      expect(state().value).toBe("inactive");
+      expect(state().context.sides).toBe(before);
+      expect(helpers.beep).toHaveBeenCalled();
+    });
+
+    it("should ignore a seated player rescanning at a full table", () => {
+      start({ players: [1, 2, 3, 4] });
+      send(BADGE_SCAN, { id: 3 });
+
+      expect(state().value).toBe("inactive");
+      expect(helpers.beep).not.toHaveBeenCalled();
+    });
+
+    it("should seat players side A, side B, side A, side B", () => {
+      start({ players: [1, 2, 3] });
+      expect(state().context.sides).toEqual([
+        [{ id: 1 }, { id: 3 }],
+        [{ id: 2 }, null],
       ]);
-      expect(state().context.currentGame).toBe(null);
+    });
+
+    it("should move a player to another slot", () => {
+      start({ players: [1, 2, 3] });
+      send(MOVE_PLAYER, { id: 3, side: 1, slot: 1 });
+      expect(state().context.sides).toEqual([
+        [{ id: 1 }, null],
+        [{ id: 2 }, { id: 3 }],
+      ]);
+    });
+
+    it("should remove a player", () => {
+      start({ players: [1, 2] });
+      send(REMOVE_PLAYER, { id: 2 });
+      expect(seated()).toEqual([{ id: 1 }]);
+      send(INITIATE_GAME);
+      expect(state().value).toBe("inactive");
+    });
+
+    it("should swap sides", () => {
+      start({ players: [1, 2] });
+      send(SWAP_SIDES);
+      expect(state().context.sides).toEqual([
+        [{ id: 2 }, null],
+        [{ id: 1 }, null],
+      ]);
+    });
+
+    it("should not start with every player on one side", () => {
+      start({ players: [1, 2] });
+      send(MOVE_PLAYER, { id: 2, side: 0, slot: 1 });
+      send(INITIATE_GAME);
+      expect(state().value).toBe("inactive");
+    });
+
+    it("should form teams from the sides, not the scan order", async () => {
+      start({ players: [5, 6, 7, 8] });
+      // 5 and 6 scanned first but play together on side B
+      send(MOVE_PLAYER, { id: 5, side: 1, slot: 1 });
+      send(MOVE_PLAYER, { id: 7, side: 0, slot: 1 });
+      expect(lineup.teamsOf(state().context.sides)).toEqual(["7::8", "5::6"]);
+      send(INITIATE_GAME);
+      await reach("active");
+
+      const game = state().context.currentGame;
+      expect(game.competitionId).toBe("5::6V7::8");
+      expect(game.props).toMatchObject({ t1: "7::8", t2: "5::6" });
     });
 
     it("should initiate the game", async () => {
@@ -208,7 +274,7 @@ describe("gameMachine", () => {
       send(INITIATE_GAME);
       expect(state().value).toBe("pending");
       await reach("active");
-      expect(state().context.currentGame.competitionId).toBe("1::2V3");
+      expect(state().context.currentGame.competitionId).toBe("1::3V2");
     });
 
     it("should not initiate the game with one player", () => {
@@ -242,7 +308,7 @@ describe("gameMachine", () => {
         { fobId: "888", alias: "ab", type: "Player" },
       ]);
       expect(state().context.newPlayer).toEqual({ id: "0", alias: "" });
-      expect(state().context.players).toEqual([{ id: "888", alias: "ab" }]);
+      expect(seated()).toEqual([{ id: "888", alias: "ab" }]);
       expect(state().value).toBe("inactive");
     });
 
@@ -263,7 +329,7 @@ describe("gameMachine", () => {
       send(DENY);
       expect(state().value).toBe("inactive");
       expect(state().context.newPlayer).toEqual({ id: "0", alias: "" });
-      expect(state().context.players).toEqual([{ id: "1", alias: "one" }]);
+      expect(seated()).toEqual([{ id: "1", alias: "one" }]);
       expect(queued("createPlayer")).toEqual([]);
     });
 
@@ -277,7 +343,7 @@ describe("gameMachine", () => {
 
       await reach("inactive");
       expect(state().context.newPlayer).toEqual({ id: "0", alias: "" });
-      expect(state().context.players).toEqual([]);
+      expect(seated()).toEqual([]);
       expect(queued("createPlayer")).toEqual([]);
     });
 
@@ -349,7 +415,8 @@ describe("gameMachine", () => {
     });
 
     it("should move to shouldResume state when an unfinished game is found", async () => {
-      start({ players: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }] });
+      // seats 1::2 on side A and 3::4 on side B
+      start({ players: [1, 3, 2, 4] });
       send(INITIATE_GAME);
       await reach("shouldResume");
 
@@ -489,7 +556,7 @@ describe("gameMachine", () => {
       send(SCORE_POINT, { index: 1 });
       await reach("inactive");
 
-      expect(state().context.players).toEqual([]);
+      expect(seated()).toEqual([]);
       expect(state().context.currentGame).toBe(null);
     });
 
@@ -503,7 +570,7 @@ describe("gameMachine", () => {
       send(SCORE_POINT, { index: 1 });
       await reach("inactive");
 
-      expect(state().context.players).toEqual([]);
+      expect(seated()).toEqual([]);
       expect(state().context.currentGame).toBe(null);
       expect(log).toHaveBeenCalledWith(
         "completeGame failed",
@@ -550,7 +617,7 @@ describe("gameMachine", () => {
       send(PAUSE);
       expect(state().value).toBe("inactive");
       expect(state().context.currentGame).toBe(null);
-      expect(state().context.players).toEqual([]);
+      expect(seated()).toEqual([]);
     });
   });
 
@@ -565,15 +632,15 @@ describe("gameMachine", () => {
     it("should recognize a player seen before while offline", async () => {
       start();
       send(BADGE_SCAN, { id: "12345" });
-      await waitFor(actor, (s) => s.context.players.length === 1);
+      await waitFor(actor, (s) => lineup.playersOf(s.context.sides).length === 1);
 
       offline();
       actor.stop();
       start();
       send(BADGE_SCAN, { id: "12345" });
-      await waitFor(actor, (s) => s.context.players.length === 1);
+      await waitFor(actor, (s) => lineup.playersOf(s.context.sides).length === 1);
 
-      expect(state().context.players).toEqual([
+      expect(seated()).toEqual([
         { id: "12345", alias: "player-exists" },
       ]);
     });
@@ -586,7 +653,7 @@ describe("gameMachine", () => {
       send(APPEND_CHAR, { character: "z" });
       send(CONFIRM);
 
-      expect(state().context.players).toEqual([{ id: "777", alias: "z" }]);
+      expect(seated()).toEqual([{ id: "777", alias: "z" }]);
       expect(queued("createPlayer")).toEqual([
         { fobId: "777", alias: "z", type: "Player" },
       ]);
@@ -603,12 +670,12 @@ describe("gameMachine", () => {
       await reach("inactive");
 
       expect(queued("createGame")).toEqual([
-        expect.objectContaining({ id, competitionId: "1::2V3", type: "Game" }),
+        expect.objectContaining({ id, competitionId: "1::3V2", type: "Game" }),
       ]);
       expect(queued("createPlayerGames").map((pg) => pg.playerID)).toEqual([
         "1",
-        "2",
         "3",
+        "2",
       ]);
       expect(queued("updateGame")).toEqual([
         expect.objectContaining({
@@ -622,8 +689,8 @@ describe("gameMachine", () => {
 
     it("should record that side A's team sorts second in the competition", async () => {
       offline();
-      // 3 and 4 scan first, so they play side A (goal sensor 0)
-      start({ players: [{ id: "3" }, { id: "4" }, { id: "1" }, { id: "2" }] });
+      // 3 and 4 play side A (goal sensor 0)
+      start({ players: ["3", "1", "4", "2"] });
       send(INITIATE_GAME);
       await reach("active");
 
@@ -654,7 +721,7 @@ describe("gameMachine", () => {
       send(PAUSE);
       await reach("inactive");
 
-      // scanned the other way round this time
+      // lined up on the other ends this time
       actor.stop();
       start({ players: [{ id: "1" }, { id: "3" }] });
       send(INITIATE_GAME);
@@ -663,6 +730,43 @@ describe("gameMachine", () => {
       const game = state().context.currentGame;
       expect(game.props).toMatchObject({ t1: "3", t2: "1" });
       expect(game.teamPoints).toEqual([1, 0]);
+      // the lineup moves back to the ends the game was played on
+      expect(lineup.teamsOf(state().context.sides)).toEqual(["3", "1"]);
+    });
+
+    it("should let teams switch ends before the first goal", async () => {
+      offline();
+      start({ players: ["1", "2"] });
+      send(INITIATE_GAME);
+      await reach("active");
+      const { id } = state().context.currentGame.props;
+
+      send(SWAP_SIDES);
+
+      expect(lineup.teamsOf(state().context.sides)).toEqual(["2", "1"]);
+      expect(state().context.currentGame.props).toMatchObject({ t1: "2", t2: "1" });
+      expect(queued("updateGame")).toEqual([
+        expect.objectContaining({ id, switched: true }),
+      ]);
+
+      // side A's goal now counts for 2
+      send(SCORE_POINT, { index: 0 });
+      expect(queued("updateGame")).toEqual([
+        expect.objectContaining({ id, switched: true, sideAPoints: 1 }),
+      ]);
+    });
+
+    it("should not let teams switch ends after a goal", async () => {
+      offline();
+      start({ players: ["1", "2"] });
+      send(INITIATE_GAME);
+      await reach("active");
+      send(SCORE_POINT, { index: 1 });
+
+      send(SWAP_SIDES);
+
+      expect(lineup.teamsOf(state().context.sides)).toEqual(["1", "2"]);
+      expect(state().context.currentGame.props).toMatchObject({ t1: "1", t2: "2" });
     });
 
     it("should offer to resume a game left unfinished while offline", async () => {

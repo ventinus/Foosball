@@ -8,21 +8,6 @@ const {
   SCORE_POINT,
 } = require("../state/actionTypes");
 
-// How many players (in scan order) make up team 1, by total player count.
-// With 3 players the first two scanned are a team and the third plays alone,
-// so a fourth scan joins the third player and the game becomes 2v2.
-const TEAM_ONE_SIZE = { 2: 1, 3: 2, 4: 2 };
-
-exports.isValidPlayerCount = (count) => count in TEAM_ONE_SIZE;
-
-exports.formatTeams = (players) => {
-  const ids = players.map((player) => `${player.id}`);
-  const size = TEAM_ONE_SIZE[ids.length];
-  if (!size) return [undefined, undefined];
-  const toTeam = (teamIds) => teamIds.sort().join("::");
-  return [toTeam(ids.slice(0, size)), toTeam(ids.slice(size))];
-};
-
 exports.toCompetitionId = (t1, t2) => [t1, t2].sort().join("V");
 
 // A competitionId lists its teams in sorted order, so a game's `switched` flag

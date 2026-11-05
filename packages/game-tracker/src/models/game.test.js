@@ -96,4 +96,22 @@ describe("Game", () => {
       })
     );
   });
+
+  it("should save which end each team plays", () => {
+    Game("3", "1", { id: "game-id" }).updateGame();
+    expect(sync.saveGame).toHaveBeenCalledWith(
+      expect.objectContaining({ competitionId: "1V3", switched: true })
+    );
+  });
+
+  it("should switch sides", () => {
+    game = init();
+    game.switchSides();
+
+    expect(game.props).toMatchObject({ t1: "team2", t2: "team1" });
+    expect(game.competitionId).toBe("team1Vteam2");
+    expect(sync.saveGame).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "game-id", switched: true })
+    );
+  });
 });

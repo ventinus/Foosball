@@ -1,6 +1,5 @@
 const child_process = require("child_process");
 const {
-  formatTeams,
   toCompetitionId,
   isSwitched,
   sideTeams,
@@ -10,8 +9,6 @@ const {
   breakBeamEvent,
 } = require("./helpers");
 
-const toPlayers = (ids) => ids.map((id) => ({ id }));
-
 describe("helpers", () => {
   beforeAll(() => {
     jest.spyOn(console, "log").mockImplementation(() => null);
@@ -19,70 +16,6 @@ describe("helpers", () => {
 
   afterAll(() => {
     jest.restoreAllMocks();
-  });
-
-  describe("#formatTeams", () => {
-    it("should format 1 player teams", () => {
-      expect(formatTeams(toPlayers([123, 345]))).toEqual(["123", "345"]);
-      expect(formatTeams(toPlayers([345, 123]))).toEqual(["345", "123"]);
-      expect(formatTeams(toPlayers(["123", "345"]))).toEqual(["123", "345"]);
-      expect(formatTeams(toPlayers(["345", "123"]))).toEqual(["345", "123"]);
-    });
-
-    it("should pair the first two scanned against the third in 3 player games", () => {
-      expect(formatTeams(toPlayers([123, 234, 345]))).toEqual([
-        "123::234",
-        "345",
-      ]);
-      expect(formatTeams(toPlayers(["345", "234", "123"]))).toEqual([
-        "234::345",
-        "123",
-      ]);
-    });
-
-    it("should not form teams for other player counts", () => {
-      expect(formatTeams(toPlayers([]))).toEqual([undefined, undefined]);
-      expect(formatTeams(toPlayers([123]))).toEqual([undefined, undefined]);
-      expect(formatTeams(toPlayers([1, 2, 3, 4, 5]))).toEqual([
-        undefined,
-        undefined,
-      ]);
-    });
-
-    it("should format 2 player teams", () => {
-      expect(formatTeams(toPlayers([123, 234, 345, 456]))).toEqual([
-        "123::234",
-        "345::456",
-      ]);
-      expect(formatTeams(toPlayers([234, 123, 456, 345]))).toEqual([
-        "123::234",
-        "345::456",
-      ]);
-      expect(formatTeams(toPlayers([456, 234, 123, 345]))).toEqual([
-        "234::456",
-        "123::345",
-      ]);
-      expect(formatTeams(toPlayers([456, 234, 345, 123]))).toEqual([
-        "234::456",
-        "123::345",
-      ]);
-      expect(formatTeams(toPlayers(["123", "234", "345", "456"]))).toEqual([
-        "123::234",
-        "345::456",
-      ]);
-      expect(formatTeams(toPlayers(["234", "123", "456", "345"]))).toEqual([
-        "123::234",
-        "345::456",
-      ]);
-      expect(formatTeams(toPlayers(["456", "234", "123", "345"]))).toEqual([
-        "234::456",
-        "123::345",
-      ]);
-      expect(formatTeams(toPlayers(["456", "234", "345", "123"]))).toEqual([
-        "234::456",
-        "123::345",
-      ]);
-    });
   });
 
   describe("#toCompetitionId", () => {

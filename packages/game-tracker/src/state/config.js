@@ -11,11 +11,15 @@ const {
   GAME_ACTIVITY,
   WARN_PAUSE,
   PAUSE,
+  MOVE_PLAYER,
+  REMOVE_PLAYER,
+  SWAP_SIDES,
 } = require("./actionTypes");
 
 const actions = require("./actions");
 const actors = require("./services");
 const guards = require("./guards");
+const lineup = require("./lineup");
 const { minToMs } = require("../utils/helpers");
 
 // An unknown badge with nobody typing returns the table to `inactive`.
@@ -23,14 +27,9 @@ const REGISTRATION_TIMEOUT_MS = minToMs(2);
 exports.REGISTRATION_TIMEOUT_MS = REGISTRATION_TIMEOUT_MS;
 
 exports.initialContext = {
-  players: [],
+  sides: lineup.emptySides(), // see lineup.js
   currentGame: null,
   bestOfLimit: 1, // how many games to play to
-  cursorPosition: {
-    x: 0,
-    y: 0,
-  },
-  selectedPlayerIndices: [],
   newPlayer: {
     id: 0,
     alias: "",
@@ -55,10 +54,14 @@ exports.gameMachine = setup({
           target: "pending",
           guard: "canActivate",
         },
-        [BADGE_SCAN]: {
-          target: "findPlayer",
-          guard: "notPresent",
-        },
+        [BADGE_SCAN]: [
+          { guard: "tableFull", actions: "rejectScan" },
+          { target: "findPlayer", guard: "notPresent" },
+        ],
+        // Re-entering re-prints the lineup.
+        [MOVE_PLAYER]: { target: "inactive", reenter: true, actions: "movePlayer" },
+        [REMOVE_PLAYER]: { target: "inactive", reenter: true, actions: "removePlayer" },
+        [SWAP_SIDES]: { target: "inactive", reenter: true, actions: "swapSides" },
       },
     },
     findPlayer: {
@@ -112,7 +115,7 @@ exports.gameMachine = setup({
       invoke: {
         id: "find-or-create-game",
         src: "findOrCreateGame",
-        input: ({ context }) => ({ players: context.players }),
+        input: ({ context }) => ({ sides: context.sides }),
         onDone: {
           target: "active",
           actions: "setGame",
@@ -142,6 +145,10 @@ exports.gameMachine = setup({
       on: {
         [SCORE_POINT]: {
           actions: ["scorePoint", "updateGame"],
+        },
+        [SWAP_SIDES]: {
+          guard: "noGoals",
+          actions: ["swapSides", "switchGameSides"],
         },
         [WARN_PAUSE]: "pauseWarning",
       },

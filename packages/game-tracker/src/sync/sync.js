@@ -2,7 +2,14 @@ const { randomUUID } = require("crypto");
 const { createStore } = require("./store");
 const { isConditionFailure, isRejected } = require("./errors");
 
-const GAME_FIELDS = ["id", "sideAPoints", "sideBPoints", "startedAt", "endedAt"];
+const GAME_FIELDS = [
+  "id",
+  "sideAPoints",
+  "sideBPoints",
+  "startedAt",
+  "endedAt",
+  "switched",
+];
 
 const pickGame = (props) =>
   Object.fromEntries(

@@ -1,7 +1,8 @@
 const { pick } = require("lodash");
 const sync = require("../sync");
-const { toCompetitionId } = require("../utils");
+const { toCompetitionId, isSwitched } = require("../utils");
 
+// t1 is the team on side A (goal sensor 0), t2 the team on side B.
 const Game = (t1, t2, initialProps) => {
   if (!t1 || !t2) {
     console.log("Two teams must be present to create a game, ending");
@@ -24,8 +25,15 @@ const Game = (t1, t2, initialProps) => {
   const updateGame = async () =>
     sync.saveGame({
       ...pick(props, ["id", "sideAPoints", "sideBPoints", "endedAt", "startedAt"]),
+      switched: isSwitched(props.t1, props.t2),
       competitionId,
     });
+
+  // Teams change ends; only before anyone scores, so points never move sides.
+  const switchSides = () => {
+    [props.t1, props.t2] = [props.t2, props.t1];
+    return updateGame();
+  };
 
   const resetScore = () => {
     props.sideAPoints = 0;
@@ -46,6 +54,7 @@ const Game = (t1, t2, initialProps) => {
     resetScore,
     endGame,
     scorePoint,
+    switchSides,
     competitionId,
     get props() {
       return props;
