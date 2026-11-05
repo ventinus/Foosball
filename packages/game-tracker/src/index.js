@@ -29,6 +29,8 @@ const {
   breakBeamEvent,
 } = require("./utils");
 const { scoreboardView } = require("./utils/scoreboard/view");
+const { screenView } = require("./ui/screen");
+const { createServer } = require("./server");
 const sync = require("./sync");
 
 Amplify.configure(awsconfig);
@@ -44,7 +46,13 @@ const scoreboardChild = childProcess(
   (message) => console.log("scoreboard", message),
   (err) => console.log("onScoreboardError", err),
   // a restarted scoreboard starts blank; show it the current view
-  { onRestart: () => resendScoreboard() }
+  {
+    onRestart: () => {
+      resendScoreboard();
+      updateScreen();
+    },
+    onExit: () => updateScreen(),
+  }
 );
 
 // Sends the scoreboard what to show, only when it changes.
@@ -67,7 +75,54 @@ let currentState;
 gameService.subscribe((snapshot) => {
   currentState = snapshot.value;
   updateScoreboard(snapshot);
+  updateScreen();
 });
+
+// The table's screen: a page served to the iPad (src/server), sent the
+// screen view whenever it changes.
+const sensorStatus = () =>
+  Object.entries({
+    badgeReader: badgeScanChild,
+    goals: scorePointChild,
+    vibration: vibrationChild,
+    scoreboard: scoreboardChild,
+  }).map(([name, child]) => ({
+    name,
+    running: Boolean(child?.connected),
+    restarts: child?.restarts ?? 0,
+  }));
+
+const currentScreen = () =>
+  screenView(gameService.getSnapshot(), {
+    sync: sync.status(),
+    sensors: sensorStatus(),
+  });
+
+// Set once the server is listening, which is after this file has run, so
+// updateScreen() never reaches the sensor processes defined further down
+// before they exist.
+let screenServer = null;
+let lastScreen;
+const updateScreen = () => {
+  if (!screenServer) return;
+  const view = currentScreen();
+  const key = JSON.stringify(view);
+  if (key === lastScreen) return;
+  lastScreen = key;
+  screenServer.broadcast(view);
+};
+
+sync.onStatus(() => updateScreen());
+
+createServer({
+  port: Number(process.env.TRACKER_UI_PORT ?? 8080),
+  getView: currentScreen,
+  onCommand: (event) => gameService.send(event),
+}).then((server) => {
+  screenServer = server;
+  console.log(`Table screen: http://${require("os").hostname()}.local:${server.port}`);
+});
+
 gameService.start();
 
 const onBadgeScan = ({ message, id }) => {
@@ -131,21 +186,30 @@ const onGameStartError = (err) => console.log("onGameStartError", err);
 const onBreakBeamError = (err) => console.log("onBreakBeamError", err);
 
 const debounceOptions = { leading: true, trailing: false };
+// Sensor restarts show on the screen's status line.
+const sensorOptions = {
+  onExit: () => updateScreen(),
+  onRestart: () => updateScreen(),
+};
 const badgeScanChild = childProcess(
   "readCard.js",
   debounce(onBadgeScan, 2000, debounceOptions),
-  onBadgeScanError
+  onBadgeScanError,
+  sensorOptions
 );
 // const gameStartChild = childProcess('gameStart.js', onGameStart, onGameStartError)
 const scorePointChild = childProcess(
   "scorePoint.js",
   onBreakBeam,
-  onBreakBeamError
+  onBreakBeamError,
+  sensorOptions
 );
 // throttle (not debounce): continuous vibration must keep resetting the inactivity timer
 const vibrationChild = childProcess(
   "vibration.js",
-  throttle(onVibration, 300, debounceOptions)
+  throttle(onVibration, 300, debounceOptions),
+  undefined,
+  sensorOptions
 );
 
 readline.emitKeypressEvents(process.stdin);
