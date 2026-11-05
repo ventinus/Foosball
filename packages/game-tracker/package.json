@@ -7,6 +7,7 @@
     "test": "NODE_OPTIONS=\"--experimental-vm-modules --disable-warning=ExperimentalWarning\" jest",
     "test:watch": "npm test -- --watch",
     "start": "node src",
+    "simulate": "TRACKER_SIMULATE=1 node src",
     "scoreboard:test": "node src/utils/deviceHandlers/scoreboard.js --test"
   },
   "keywords": [],

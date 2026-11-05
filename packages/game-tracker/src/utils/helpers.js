@@ -38,7 +38,16 @@ exports.showCompetition = (players) => {
 
 exports.minToMs = (min) => 1000 * 60 * min;
 
-exports.beep = (forever) => soundBuzzer(undefined, forever);
+// A buzzer that can't be driven (off the Pi, or a GPIO error) is logged, not
+// thrown: it's called from machine actions, and the game should go on.
+exports.beep = (forever) => {
+  try {
+    return soundBuzzer(undefined, forever);
+  } catch (err) {
+    console.log("beep failed", err?.message ?? err);
+    return () => {};
+  }
+};
 
 // Maps a key pressed while typing an alias to a machine event, or null to
 // ignore it. readline leaves the key name undefined for punctuation such as

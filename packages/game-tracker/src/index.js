@@ -1,17 +1,22 @@
 const { createActor } = require("xstate");
+const os = require("os");
+const path = require("path");
 const readline = require("readline");
 const debounce = require("lodash/debounce");
 const throttle = require("lodash/throttle");
 const { Amplify } = require("aws-amplify");
 
-// `amplify pull` writes aws-exports.js as an ES module (`export default`); Node 24's
-// require(esm) returns its namespace, so unwrap `default` when present.
-const awsExports = require("./aws-exports");
-const awsconfig = awsExports.default ?? awsExports;
+// TRACKER_SIMULATE=1 runs the tracker without the table: no sensors, and the
+// screen gets buttons that stand in for them (badge scans, goals, the coin
+// slot). It never talks to the API, so practice games stay out of the real
+// data; they're kept in data/simulator.
+const SIMULATE = process.env.TRACKER_SIMULATE === "1";
 
 const { gameMachine } = require("./state/config");
 const {
   BADGE_SCAN,
+  INITIATE_GAME,
+  SCORE_POINT,
   CONFIRM,
   PAUSE,
   GAME_ACTIVITY,
@@ -33,15 +38,31 @@ const { screenView } = require("./ui/screen");
 const { createServer } = require("./server");
 const sync = require("./sync");
 
-Amplify.configure(awsconfig);
+if (!SIMULATE) {
+  // `amplify pull` writes aws-exports.js as an ES module (`export default`);
+  // Node 24's require(esm) returns its namespace, so unwrap `default`.
+  const awsExports = require("./aws-exports");
+  Amplify.configure(awsExports.default ?? awsExports);
+}
 
 // Players and games are saved locally first and sent to the API when it's
 // reachable, so the table keeps working offline.
-sync.init({ dataDir: sync.DEFAULT_DATA_DIR });
-sync.refreshPlayers();
+sync.init(
+  SIMULATE
+    ? { dataDir: path.join(sync.DEFAULT_DATA_DIR, "simulator"), autoFlush: false }
+    : { dataDir: sync.DEFAULT_DATA_DIR }
+);
+if (!SIMULATE) sync.refreshPlayers();
+
+// A sensor (or the scoreboard) running as its own process, or a stand-in that
+// does nothing when simulating.
+const device = (...args) =>
+  SIMULATE
+    ? { connected: false, restarts: 0, send: () => {}, stop: () => {} }
+    : childProcess(...args);
 
 // The LED matrix scoreboard wired to this Pi.
-const scoreboardChild = childProcess(
+const scoreboardChild = device(
   "scoreboard.js",
   (message) => console.log("scoreboard", message),
   (err) => console.log("onScoreboardError", err),
@@ -81,7 +102,9 @@ gameService.subscribe((snapshot) => {
 // The table's screen: a page served to the iPad (src/server), sent the
 // screen view whenever it changes.
 const sensorStatus = () =>
-  Object.entries({
+  SIMULATE
+    ? []
+    : Object.entries({
     badgeReader: badgeScanChild,
     goals: scorePointChild,
     vibration: vibrationChild,
@@ -96,6 +119,7 @@ const currentScreen = () =>
   screenView(gameService.getSnapshot(), {
     sync: sync.status(),
     sensors: sensorStatus(),
+    simulate: SIMULATE,
   });
 
 // Set once the server is listening, which is after this file has run, so
@@ -114,13 +138,27 @@ const updateScreen = () => {
 
 sync.onStatus(() => updateScreen());
 
+// The simulator's stand-ins for the sensors.
+const SENSOR_COMMANDS = [BADGE_SCAN, SCORE_POINT, INITIATE_GAME, WARN_PAUSE];
+
+const onScreenCommand = (event) => {
+  if (SIMULATE && SENSOR_COMMANDS.includes(event.type)) {
+    // "Go idle" skips the inactivity wait; anything else counts as play.
+    if (event.type === WARN_PAUSE) return warnInactive();
+    onVibration();
+  }
+  gameService.send(event);
+};
+
 createServer({
   port: Number(process.env.TRACKER_UI_PORT ?? 8080),
   getView: currentScreen,
-  onCommand: (event) => gameService.send(event),
+  onCommand: onScreenCommand,
+  extraCommands: SIMULATE ? SENSOR_COMMANDS : [],
 }).then((server) => {
   screenServer = server;
-  console.log(`Table screen: http://${require("os").hostname()}.local:${server.port}`);
+  const host = SIMULATE ? "localhost" : `${os.hostname()}.local`;
+  console.log(`Table screen: http://${host}:${server.port}`);
 });
 
 gameService.start();
@@ -166,19 +204,25 @@ const PAUSE_GRACE_MS = minToMs(1); // time to respond to the warning before the 
 
 let gameWarnId = 0;
 let gamePauseId = 0;
+
+// Asks whether anyone's still playing, and pauses if nobody answers in time.
+const warnInactive = () => {
+  clearTimeout(gameWarnId);
+  clearTimeout(gamePauseId);
+  gameService.send({ type: WARN_PAUSE, endsAt: Date.now() + PAUSE_GRACE_MS });
+  gamePauseId = setTimeout(
+    () => gameService.send({ type: PAUSE }),
+    PAUSE_GRACE_MS
+  );
+};
+
 const onVibration = () => {
   clearTimeout(gameWarnId);
   clearTimeout(gamePauseId);
 
   if (currentState === "pauseWarning") gameService.send({ type: GAME_ACTIVITY });
 
-  gameWarnId = setTimeout(() => {
-    gameService.send({ type: WARN_PAUSE, endsAt: Date.now() + PAUSE_GRACE_MS });
-    gamePauseId = setTimeout(
-      () => gameService.send({ type: PAUSE }),
-      PAUSE_GRACE_MS
-    );
-  }, INACTIVITY_WARN_MS);
+  gameWarnId = setTimeout(warnInactive, INACTIVITY_WARN_MS);
 };
 
 const onBadgeScanError = (err) => console.log("onBadgeScanError", err);
@@ -191,29 +235,33 @@ const sensorOptions = {
   onExit: () => updateScreen(),
   onRestart: () => updateScreen(),
 };
-const badgeScanChild = childProcess(
+const badgeScanChild = device(
   "readCard.js",
   debounce(onBadgeScan, 2000, debounceOptions),
   onBadgeScanError,
   sensorOptions
 );
 // const gameStartChild = childProcess('gameStart.js', onGameStart, onGameStartError)
-const scorePointChild = childProcess(
+const scorePointChild = device(
   "scorePoint.js",
   onBreakBeam,
   onBreakBeamError,
   sensorOptions
 );
 // throttle (not debounce): continuous vibration must keep resetting the inactivity timer
-const vibrationChild = childProcess(
+const vibrationChild = device(
   "vibration.js",
   throttle(onVibration, 300, debounceOptions),
   undefined,
   sensorOptions
 );
 
-readline.emitKeypressEvents(process.stdin);
-process.stdin.setRawMode(true);
+// The Pi's keyboard. Without a terminal (e.g. the simulator run in the
+// background) the screen is the only input.
+if (process.stdin.isTTY) {
+  readline.emitKeypressEvents(process.stdin);
+  process.stdin.setRawMode(true);
+}
 
 // Debounce only the y/n/return app keys (guards against double-confirming);
 // alias typing during registration must not drop fast keystrokes.

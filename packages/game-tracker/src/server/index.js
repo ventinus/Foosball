@@ -109,7 +109,9 @@ exports.createServer = ({
 
   const send = (socket, view) => {
     if (socket.readyState === socket.OPEN) {
-      socket.send(JSON.stringify({ type: "view", view }));
+      // `now` lets the page time countdowns by the Pi's clock, which can be
+      // off when it has been offline (it has no real-time clock).
+      socket.send(JSON.stringify({ type: "view", view, now: Date.now() }));
     }
   };
 

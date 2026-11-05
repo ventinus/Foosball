@@ -14,7 +14,8 @@ Both packages talk to the same Amplify Gen 1 backend (`gameservice`, region us-w
 ## Commands
 
 ### game-tracker (`cd packages/game-tracker`)
-- `npm start`: runs `node src` (needs Pi GPIO/SPI hardware and a TTY, since stdin is put in raw mode)
+- `npm start`: runs `node src` (needs Pi GPIO/SPI hardware; the Pi's keyboard is read when stdin is a TTY)
+- `npm run simulate`: runs the tracker off the Pi with no sensors and without the API (`TRACKER_SIMULATE=1`). The table screen at `http://localhost:8080` gets buttons standing in for the sensors; data goes to `data/simulator`.
 - `npm test` / `npm run test:watch`: Jest 30. The script sets `--experimental-vm-modules` because MSW 2 pulls in ESM-only deps, so run tests through `npm test -- <args>` rather than bare `npx jest`.
 - Single test: `npm test -- src/state/config.test.js` or `npm test -- -t "test name"`
 - `npm run scoreboard:test` (on the Pi): draws a test pattern on the LED matrix to check wiring and orientation. Correct a rotated, mirrored or swapped display with `SCOREBOARD_ORIENTATION` (0/90/180/270), `SCOREBOARD_MIRROR=1` and `SCOREBOARD_REVERSE=1`. `SCOREBOARD_INTENSITY` (0-15) sets brightness.
@@ -50,10 +51,14 @@ Each package has a single `utils/api.js` built on Amplify v6 `generateClient()` 
 - The win condition is hard-coded in `state/guards.js` (`gameComplete`: first to 5).
 - The LED-matrix scoreboard (two MAX7219 8x8 modules) is wired to the tracker Pi and driven by the forked `deviceHandlers/scoreboard.js`, which bit-bangs three GPIO pins through onoff. Every onoff pin goes through `pin()` in `utils/gpio.js`, which adds the sysfs base of the Pi's GPIO controller (512 rather than 0 on newer kernels). `index.js` sends it `{ view }` messages whenever `scoreboardView(snapshot)` changes. The rendering, driver and the 30s hold of a final score are pure modules in `utils/scoreboard/`, testable off the Pi. `pin-mapping.txt` documents the GPIO wiring. `display.py` (an I2C OLED) is not wired into the tracker.
 
+- **Table screen (`src/ui`, `src/server`)**: the tracker serves a page for an iPad at the table (`src/server/public`, plain HTML/JS with no build step) on `TRACKER_UI_PORT` (default 8080), plus a WebSocket at `/ws`. `screenView(snapshot, status)` in `src/ui/screen.js` is a pure function from the machine snapshot to what the page shows (screen name, lineup, score, countdown `deadline`, and the commands the machine would accept, via `snapshot.can`). `index.js` broadcasts it whenever it changes and sends commands from the page to the machine; only `COMMANDS` in `screen.js` get through (plus the fake sensor events in simulator mode), with fields checked in `server/index.js`'s `toEvent`. Views carry the Pi's clock (`now`) so the page can time countdowns despite clock drift.
+- After a game ends the machine stays in `complete`: `confirming` (10s, the winning goal can be undone), then `saving`/`saved` with Rematch offered until 60s or a badge scan. `REMATCH` goes through the `rematch` state, which saves the finished game if needed and creates a new one for the same lineup.
+
 ### game-tracker tests
 - MSW 2 (`src/mocks/handlers.js`) intercepts AppSync GraphQL operations **by operation name** (e.g. `GetPlayer`, `GameByCompetition`), with `onUnhandledRequest: "error"`. If you add or rename a query in `src/graphql/custom.js`, update the handlers to match.
 - Machine tests start actors with `createActor(gameMachine, { input })`, or jump to a state with `gameMachine.resolveState(...)`, and wait for async states with xstate's `waitFor`. Each test calls `sync.init({ autoFlush: false })` for a fresh in-memory sync that queues writes without sending them; assert on `sync.pending()`. Reads still go through MSW. `src/sync/sync.test.js` tests the outbox against a fake `api` and a temp data dir. A request that outlives its test isn't matched by MSW, which causes unhandled rejections.
 - `__mocks__/onoff.js` stubs GPIO so tests run off-device.
+- `src/server/index.test.js` starts the screen server on a random port and adds an MSW `passthrough()` handler for it, since MSW fails any request it doesn't handle.
 
 ### game-app
 - `@` is aliased to `src/` (`vite.config.js`). Files containing JSX must use the `.jsx` extension. The entry point is `src/main.jsx`, loaded from the root `index.html`.

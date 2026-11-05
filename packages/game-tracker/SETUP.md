@@ -244,6 +244,35 @@ that window get wrong start and end times. Check with `timedatectl`. If the
 table is often offline, add an RTC module (e.g. a DS3231 on the I2C pins,
 enabled with `dtoverlay=i2c-rtc,ds3231` in `/boot/firmware/config.txt`).
 
+## The table screen (iPad)
+
+The tracker serves the table's screen on port 8080 (`TRACKER_UI_PORT` in
+`tracker.env` changes it). It shows who's at the table and on which side, the
+score, prompts (new player, resume, still playing?) and the final result with
+Rematch and Undo, and players use it to move people between sides.
+
+1. Put the iPad on the same Wi-Fi as the Pi and open
+   `http://foosball-1.local:8080` in Safari (use the table's hostname). The
+   tracker prints the address when it starts.
+2. Share → **Add to Home Screen**, then open it from there so it runs full
+   screen.
+3. Keep the screen on: Settings → Display & Brightness → Auto-Lock → Never,
+   or lock the iPad to the page with Guided Access (Settings → Accessibility
+   → Guided Access, then triple-click the side or home button on the page).
+
+New players type their name with the iPad's on-screen keyboard; the Pi's
+keyboard still works too (see the key list in step 6). The page reconnects by
+itself when the Pi restarts or the iPad wakes up.
+
+There's no login: anyone on the same network can open the page and tap its
+buttons.
+
+**Trying it without the table:** on a computer, `npm run simulate` runs the
+tracker with no sensors and adds buttons to the page that stand in for them
+(scan a badge, goal A/B, coin, go idle). Open `http://localhost:8080`. The
+simulator never talks to the API, so its games aren't saved online; it keeps
+its players and games in `data/simulator`.
+
 ## Setting up several tables
 
 Set up one card fully, then copy it (e.g. with Imager or `dd`). On each copy,

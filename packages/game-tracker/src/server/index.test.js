@@ -109,12 +109,14 @@ describe("screen server", () => {
     await start();
     const socket = await connect();
     await eventually(() =>
-      expect(socket.messages).toEqual([{ type: "view", view: { screen: "idle" } }])
+      expect(socket.messages).toEqual([
+        { type: "view", view: { screen: "idle" }, now: expect.any(Number) },
+      ])
     );
 
     server.broadcast({ screen: "playing" });
     await eventually(() =>
-      expect(socket.messages.at(-1)).toEqual({ type: "view", view: { screen: "playing" } })
+      expect(socket.messages.at(-1)).toMatchObject({ type: "view", view: { screen: "playing" } })
     );
   });
 
