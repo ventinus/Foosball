@@ -2,7 +2,7 @@ const Mfrc522 = require('mfrc522-rpi')
 const SoftSPI = require('rpi-softspi')
 const { beep } = require('../helpers')
 
-//# This loop keeps checking for chips. If one is near it will get the UID and authenticate
+//# This loop keeps checking for chips and reports the UID of any that is near
 console.log({ message: 'scanning...' })
 console.log({ message: 'Please put chip or keycard in the antenna inductive zone!' })
 console.log({ message: 'Press Ctrl-C to stop.' })
@@ -46,37 +46,11 @@ setInterval(function() {
     cardId = cardId * 256 + uid[i]
   }
   console.log({ message: cardId })
-  // console.log(
-  //   "Card read UID: %s %s %s %s",
-  //   uid[0].toString(16),
-  //   uid[1].toString(16),
-  //   uid[2].toString(16),
-  //   uid[3].toString(16)
-  // );
 
-  //# Select the scanned card
-  const memoryCapacity = mfrc522.selectCard(uid)
-  // console.log({ message: "Card Memory Capacity: " + memoryCapacity });
-
-  //# This is the default key for authentication
-  const key = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
-
-  //# Authenticate on Block 8 with key and uid
-  if (!mfrc522.authenticate(8, key, uid)) {
-    console.log({ message: 'Authentication Error' })
-    return
-  }
-
-  //# Dump Block 8
-  const value = String.fromCharCode(...mfrc522.getDataForBlock(8))
-  console.log({ message: `Block: 8 Data: ${value}` })
-
-  // console.log({ message: JSON.stringify({value, cardId}, null, 2) })
-  // console.log({ id: cardId })
+  // The UID is all the tracker needs. Don't authenticate or read a data block:
+  // some badges use a non-default key, and failing that check used to drop
+  // the scan after the beep.
   process.send({ id: cardId })
-
-  //# Stop
-  mfrc522.stopCrypto()
 }, 500)
 
 // Exit when the tracker goes away, so this process doesn't keep the pins.
