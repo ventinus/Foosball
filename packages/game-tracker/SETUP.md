@@ -17,7 +17,7 @@ Pi Zero 2 W or newer are noted where they matter.
 | Vibration sensor | Detects play; inactivity triggers the pause warning |
 | Active buzzer | |
 | 2× MAX7219 8×8 LED matrix modules (chained) | The scoreboard |
-| USB keyboard + micro-USB OTG adapter | Answering prompts (y/n/return) and typing new players' names |
+| USB keyboard + micro-USB OTG adapter, or a Bluetooth keyboard | Answering prompts (y/n/return) and typing new players' names. Bluetooth pairing is in step 10 |
 | Optional: RTC module (e.g. DS3231) | Keeps the clock right when it boots offline (step 9) |
 
 Wire everything as listed in [`pin-mapping.txt`](pin-mapping.txt). The
@@ -171,7 +171,7 @@ From `~/Foosball/packages/game-tracker`:
    `SCOREBOARD_ORIENTATION=0 npm run scoreboard:test` (0, 90, 180 or 270),
    `SCOREBOARD_MIRROR=1` and `SCOREBOARD_REVERSE=1`. `SCOREBOARD_INTENSITY`
    sets brightness (0–15, default 1). Note the values for step 7.
-2. **Everything else:** run `npm start` with the USB keyboard attached (or
+2. **Everything else:** run `npm start` with the keyboard connected (or
    over SSH):
    - Scan a badge: it beeps and prints "Please wait while I look you up...".
      An unknown badge asks for a name.
@@ -244,7 +244,38 @@ that window get wrong start and end times. Check with `timedatectl`. If the
 table is often offline, add an RTC module (e.g. a DS3231 on the I2C pins,
 enabled with `dtoverlay=i2c-rtc,ds3231` in `/boot/firmware/config.txt`).
 
-## The table screen (iPad)
+## 10. Bluetooth keyboard (optional)
+
+The Zero W has Bluetooth built in, and Raspberry Pi OS Lite comes with BlueZ,
+so nothing needs installing. A paired keyboard is an ordinary input device,
+so its keys reach the tracker on tty1 just like a USB keyboard's.
+
+Over SSH, put the keyboard in pairing mode and run `bluetoothctl`, then:
+
+```
+agent on
+default-agent
+scan on                  # wait for the keyboard to appear, note its address
+pair AA:BB:CC:DD:EE:FF   # if it prints "PIN code: NNNNNN" or "Passkey: NNNNNN",
+                         # type that on the Bluetooth keyboard and press Enter
+trust AA:BB:CC:DD:EE:FF  # so it reconnects by itself after a reboot or sleep
+connect AA:BB:CC:DD:EE:FF
+scan off
+quit
+```
+
+- Stay in the same `bluetoothctl` session from `scan on` to `pair`. Devices
+  found by a scan are forgotten shortly after it stops, and `pair` then says
+  "not available".
+- `remove <address>` (e.g. before pairing again) also clears the trust, so run
+  `trust` again afterwards.
+- Most keyboards sleep when idle. The first key pressed after that wakes the
+  keyboard and is often lost while it reconnects, so press a key and wait a
+  moment before answering a prompt.
+- Wi-Fi and Bluetooth share one radio on the Zero W. If Wi-Fi becomes
+  unreliable or keys lag, a USB keyboard avoids it.
+
+## 11. The table screen (iPad)
 
 The tracker serves the table's screen on port 8080 (`TRACKER_UI_PORT` in
 `tracker.env` changes it). It shows who's at the table and on which side, the
