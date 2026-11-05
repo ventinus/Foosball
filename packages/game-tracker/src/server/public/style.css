@@ -6,8 +6,11 @@
   --line: #2e3a46;
   --text: #eef2f5;
   --muted: #8d9aa6;
-  --side-a: #3d8bfd;
-  --side-a-soft: rgba(61, 139, 253, 0.16);
+  /* side A's players are black: a black panel, light text */
+  --side-a: #f2f4f6;
+  --side-a-border: #5c6873;
+  --side-a-panel: #000000;
+  --side-a-soft: rgba(255, 255, 255, 0.06);
   --side-b: #f5a524;
   --side-b-soft: rgba(245, 165, 36, 0.16);
   --good: #36c37b;
@@ -29,8 +32,10 @@
     --line: #d5dce3;
     --text: #12171c;
     --muted: #5d6974;
-    --side-a: #1f6fe5;
-    --side-a-soft: rgba(31, 111, 229, 0.12);
+    --side-a: #12171c;
+    --side-a-border: #12171c;
+    --side-a-panel: #ffffff;
+    --side-a-soft: rgba(18, 23, 28, 0.1);
     --side-b: #c97a00;
     --side-b-soft: rgba(201, 122, 0, 0.14);
     --focus: #12171c;
@@ -183,8 +188,8 @@ main {
 }
 
 .side.a {
-  border-color: var(--side-a);
-  background: linear-gradient(var(--side-a-soft), transparent 70%), var(--panel);
+  border-color: var(--side-a-border);
+  background: linear-gradient(var(--side-a-soft), transparent 70%), var(--side-a-panel);
 }
 .side.b {
   border-color: var(--side-b);
