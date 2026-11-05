@@ -25,6 +25,17 @@ exports.formatTeams = (players) => {
 
 exports.toCompetitionId = (t1, t2) => [t1, t2].sort().join("V");
 
+// A competitionId lists its teams in sorted order, so a game's `switched` flag
+// records which end each team played: true when the competition's second team
+// was on side A.
+exports.isSwitched = (sideA, sideB) => sideA > sideB;
+
+// The [sideA, sideB] teams of a saved game, from its competitionId and `switched`.
+exports.sideTeams = (competitionId, switched) => {
+  const teams = competitionId.split("V");
+  return switched ? teams.reverse() : teams;
+};
+
 const prompt = (msg = []) => console.log(msg);
 
 exports.prompt = prompt;

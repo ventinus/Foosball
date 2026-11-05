@@ -620,6 +620,51 @@ describe("gameMachine", () => {
       ]);
     });
 
+    it("should record that side A's team sorts second in the competition", async () => {
+      offline();
+      // 3 and 4 scan first, so they play side A (goal sensor 0)
+      start({ players: [{ id: "3" }, { id: "4" }, { id: "1" }, { id: "2" }] });
+      send(INITIATE_GAME);
+      await reach("active");
+
+      expect(queued("createGame")).toEqual([
+        expect.objectContaining({ competitionId: "1::2V3::4", switched: true }),
+      ]);
+    });
+
+    it("should not mark a game switched when side A's team sorts first", async () => {
+      offline();
+      start({ players: [{ id: "1" }, { id: "2" }] });
+      send(INITIATE_GAME);
+      await reach("active");
+
+      expect(queued("createGame")).toEqual([
+        expect.objectContaining({ competitionId: "1V2", switched: false }),
+      ]);
+    });
+
+    it("should resume a game on the ends it was played on", async () => {
+      offline();
+      // 3 plays side A and scores
+      start({ players: [{ id: "3" }, { id: "1" }] });
+      send(INITIATE_GAME);
+      await reach("active");
+      send(SCORE_POINT, { index: 0 });
+      send(WARN_PAUSE);
+      send(PAUSE);
+      await reach("inactive");
+
+      // scanned the other way round this time
+      actor.stop();
+      start({ players: [{ id: "1" }, { id: "3" }] });
+      send(INITIATE_GAME);
+      await reach("shouldResume");
+
+      const game = state().context.currentGame;
+      expect(game.props).toMatchObject({ t1: "3", t2: "1" });
+      expect(game.teamPoints).toEqual([1, 0]);
+    });
+
     it("should offer to resume a game left unfinished while offline", async () => {
       offline();
       start({ players: [{ id: "1" }, { id: "2" }] });

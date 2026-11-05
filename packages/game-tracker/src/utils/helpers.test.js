@@ -2,6 +2,8 @@ const child_process = require("child_process");
 const {
   formatTeams,
   toCompetitionId,
+  isSwitched,
+  sideTeams,
   showCompetition,
   minToMs,
   registrationKeyEvent,
@@ -90,6 +92,35 @@ describe("helpers", () => {
       expect(toCompetitionId("123::234", "345::456")).toBe("123::234V345::456");
       expect(toCompetitionId("234::456", "123::345")).toBe("123::345V234::456");
       expect(toCompetitionId("234::345", "123")).toBe("123V234::345");
+    });
+  });
+
+  describe("#isSwitched", () => {
+    it("should be false when side A's team sorts first", () => {
+      expect(isSwitched("1", "2")).toBe(false);
+      expect(isSwitched("1::2", "3::4")).toBe(false);
+    });
+
+    it("should be true when side A's team sorts second", () => {
+      expect(isSwitched("2", "1")).toBe(true);
+      expect(isSwitched("3::4", "1::2")).toBe(true);
+      expect(isSwitched("3", "1::2")).toBe(true);
+    });
+  });
+
+  describe("#sideTeams", () => {
+    it("should list the teams in competition order when not switched", () => {
+      expect(sideTeams("1::2V3::4", false)).toEqual(["1::2", "3::4"]);
+    });
+
+    it("should put the competition's second team on side A when switched", () => {
+      expect(sideTeams("1::2V3::4", true)).toEqual(["3::4", "1::2"]);
+    });
+
+    it("should round-trip with isSwitched", () => {
+      const [sideA, sideB] = ["3::4", "1::2"];
+      const id = toCompetitionId(sideA, sideB);
+      expect(sideTeams(id, isSwitched(sideA, sideB))).toEqual([sideA, sideB]);
     });
   });
 

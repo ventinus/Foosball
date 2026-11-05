@@ -1,6 +1,11 @@
 const { fromPromise } = require("xstate");
 const { Game, Player } = require("../models");
-const { formatTeams, toCompetitionId } = require("../utils");
+const {
+  formatTeams,
+  toCompetitionId,
+  isSwitched,
+  sideTeams,
+} = require("../utils");
 const sync = require("../sync");
 
 // The game is created locally (with its own id) and sent to the API when it's
@@ -10,7 +15,8 @@ const createGame = async ({ players }) => {
   const game = sync.createGame({
     competitionId: toCompetitionId(team1, team2),
     playerIds: players.map(({ id }) => `${id}`),
-    switched: false, // TODO: how to determine?
+    // team1 plays side A (goal sensor 0)
+    switched: isSwitched(team1, team2),
   });
   return Game(team1, team2, game);
 };
@@ -23,8 +29,10 @@ exports.findOrCreateGame = fromPromise(async ({ input: { players } }) => {
 
   const competitionId = toCompetitionId(team1, team2);
 
+  // Resume on the ends the game was played on, so its side A/B points stay
+  // with the right teams whatever order the badges were scanned in this time.
   const game = await sync.findUnfinishedGame(competitionId);
-  if (game) throw Game(team1, team2, game);
+  if (game) throw Game(...sideTeams(competitionId, game.switched), game);
 
   return await createGame({ players });
 });
