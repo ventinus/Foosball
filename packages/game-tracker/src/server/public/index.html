@@ -17,7 +17,10 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header class="status" id="status" aria-live="polite"></header>
+    <header class="status">
+      <div class="status-items" id="status" aria-live="polite"></div>
+      <button class="flip" id="flip" type="button" aria-label="Flip the screen's sides">⇆ Flip</button>
+    </header>
     <main id="screen"></main>
     <div class="overlay" id="offline" hidden>
       <div class="overlay-card">

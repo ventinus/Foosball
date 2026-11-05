@@ -94,6 +94,29 @@ const teamName = (side) => players(side).map(nameOf).join(" & ") || "—";
 const SIDE_NAMES = ["Side A", "Side B"];
 const SIDE_CLASSES = ["a", "b"];
 
+// Which side is drawn on the left depends on which end of the table the iPad
+// sits at. By default side A is on the right; Flip (remembered per device)
+// puts it on the left for the other end.
+const FLIP_KEY = "foosball.sideAOnLeft";
+let sideAOnLeft = false;
+try {
+  sideAOnLeft = localStorage.getItem(FLIP_KEY) === "1";
+} catch {
+  // storage unavailable; use the default
+}
+const leftToRight = () => (sideAOnLeft ? [0, 1] : [1, 0]);
+
+$("flip").addEventListener("click", () => {
+  sideAOnLeft = !sideAOnLeft;
+  try {
+    localStorage.setItem(FLIP_KEY, sideAOnLeft ? "1" : "0");
+  } catch {
+    // not remembered, but still flipped for now
+  }
+  renderedScreen = null; // registration re-renders only on a screen change
+  render();
+});
+
 const remaining = (deadline) => Math.max(0, deadline - (Date.now() + clockOffset));
 
 const formatSeconds = (ms) => {
@@ -176,12 +199,14 @@ const scorePanel = (i, winner) =>
     winner === i ? "winner" : ""
   );
 
-const scoreTable = ({ winner = null } = {}) =>
-  `<div class="table">
-    ${scorePanel(0, winner)}
+const scoreTable = ({ winner = null } = {}) => {
+  const [left, right] = leftToRight();
+  return `<div class="table">
+    ${scorePanel(left, winner)}
     <div class="middle">${swapButton()}</div>
-    ${scorePanel(1, winner)}
+    ${scorePanel(right, winner)}
   </div>`;
+};
 
 const abandonButton = () =>
   can("ABANDON")
@@ -232,12 +257,13 @@ const screens = {
     else hint = `<p class="hint">Scan badges to join · one or more players on each side</p>`;
     if (!picked && view.full) hint += `<p class="hint">The table is full. Remove someone to add another player.</p>`;
 
+    const [left, right] = leftToRight();
     return `
       <p class="subtitle">Tap a player to move or remove them</p>
       <div class="table ${selected ? "selecting" : ""}">
-        ${sidePanel(0, `<div class="slots">${slots(0)}</div>`)}
+        ${sidePanel(left, `<div class="slots">${slots(left)}</div>`)}
         <div class="middle">${swapButton()}</div>
-        ${sidePanel(1, `<div class="slots">${slots(1)}</div>`)}
+        ${sidePanel(right, `<div class="slots">${slots(right)}</div>`)}
       </div>
       ${hint}
       ${
@@ -280,16 +306,19 @@ const screens = {
     </div>
     ${can("SWAP_SIDES") ? '<p class="hint">Wrong ends? Switch before the first goal.</p>' : ""}`,
 
-  stillPlaying: () => `
+  stillPlaying: () => {
+    const [left, right] = leftToRight();
+    return `
     <div class="center">
       <h1 class="title">Still playing?</h1>
-      <p class="subtitle">${escape(teamName(view.sides[0]))} ${view.score[0]} – ${view.score[1]} ${escape(teamName(view.sides[1]))}</p>
+      <p class="subtitle">${escape(teamName(view.sides[left]))} ${view.score[left]} – ${view.score[right]} ${escape(teamName(view.sides[right]))}</p>
       <p class="hint">The game ends in ${countdown(view.deadline)} unless someone plays</p>
       <div class="actions">
         <button class="btn primary big" data-command="CONFIRM">Keep playing</button>
         ${abandonButton()}
       </div>
-    </div>`,
+    </div>`;
+  },
 
   final: () => {
     const { winner } = view;
